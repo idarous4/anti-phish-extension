@@ -303,6 +303,12 @@ function showTrustOverlay(score, issues, emailData) {
  * Add learning section for medium/high risk emails
  */
 function addLearningSection(score, issues) {
+  // Check if extension context is valid
+  if (!chrome.runtime || !chrome.runtime.id) {
+    log('⚠️ Extension context invalidated - learning section not added');
+    return;
+  }
+  
   // Check if learning mode is enabled via chrome.storage
   if (!chrome.storage || !chrome.storage.local) return;
   
@@ -376,11 +382,18 @@ function removeExistingOverlay() {
 
 function updateStats(score) {
   try {
+    // Check if extension context is still valid
+    if (!chrome.runtime || !chrome.runtime.id) {
+      log('⚠️ Extension context invalidated - stats not saved');
+      return;
+    }
+
     // Use chrome.storage to sync with popup
     if (chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['scanned', 'blocked'], function(result) {
+        // Check for runtime errors
         if (chrome.runtime.lastError) {
-          log('⚠️ Storage read error');
+          log('⚠️ Storage read error:', chrome.runtime.lastError.message);
           return;
         }
 
@@ -389,7 +402,7 @@ function updateStats(score) {
 
         chrome.storage.local.set({ scanned, blocked }, function() {
           if (chrome.runtime.lastError) {
-            log('⚠️ Storage write error');
+            log('⚠️ Storage write error:', chrome.runtime.lastError.message);
             return;
           }
           log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
