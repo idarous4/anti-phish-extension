@@ -10,9 +10,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.15.0",
-    "@tensorflow/tfjs-layers": "^4.15.0",
-    "@tensorflow-models/universal-sentence-encoder": "^1.3.3"
+    "@tensorflow/tfjs": "^3.21.0"
   },
   "devDependencies": {
     "webpack": "^5.89.0",
