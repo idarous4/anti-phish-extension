@@ -69,20 +69,15 @@
   // They can read emails, modify the page, add buttons, etc.
   "content_scripts": [
     {
-      // Only run on Gmail
       "matches": ["*://mail.google.com/*"],
-      
-      // JavaScript file to inject
-      "js": ["src/content-gmail.js"],
-      
-      // CSS file for styling our overlay
+      "js": [
+        "src/ai-detection.js",
+        "src/content-gmail.js"
+      ],
       "css": ["src/styles.css"],
-      
-      // When to run: "document_end" = after page fully loads
       "run_at": "document_end"
     },
     {
-      // Only run on Outlook
       "matches": ["*://outlook.live.com/*", "*://outlook.office.com/*"],
       "js": ["src/content-outlook.js"],
       "css": ["src/styles.css"],

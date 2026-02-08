@@ -22,6 +22,12 @@ function log(...args) {
 
 function init() {
   log('🛡️ Anti-Phish Shield loaded');
+  
+  // Initialize AI model
+  initAIModel().then(() => {
+    log('🤖 AI ready');
+  });
+  
   watchForEmailOpens();
   checkForOpenEmail();
 }
@@ -47,7 +53,7 @@ function checkForOpenEmail() {
   }
 }
 
-function analyzeCurrentEmail() {
+async function analyzeCurrentEmail() {
   if (isAnalyzing) return;
   isAnalyzing = true;
   
@@ -60,7 +66,8 @@ function analyzeCurrentEmail() {
     
     log('📧 Email:', emailData.sender, '-', emailData.subject.substring(0, 50));
     
-    const result = runHeuristics(emailData);
+    // Use combined AI + Heuristics detection
+    const result = await combinedDetection(emailData);
     showTrustOverlay(result.score, result.issues, emailData);
     updateStats(result.score);
     
