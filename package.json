@@ -1,69 +1,25 @@
-/**
- * ============================================================================
- * PACKAGE.JSON - PROJECT CONFIGURATION
- * ============================================================================
- * 
- * WHAT IS THIS FILE?
- * This tells Node.js what your project needs. Like a shopping list for code.
- * 
- * DO I NEED TO EDIT THIS?
- * No - this is ready to use. Just run: npm install
- * ============================================================================
- */
-
 {
   "name": "anti-phish-extension",
   "version": "1.0.0",
   "description": "AI-powered phishing detection for Gmail and Outlook",
   "main": "src/background.js",
   "scripts": {
-    // Build command - bundles everything for Chrome Store
     "build": "webpack --mode=production",
-    
-    // Dev command - watches files and auto-reloads
     "dev": "webpack --mode=development --watch",
-    
-    // Test command - runs automated tests
     "test": "jest",
-    
-    // Lint command - checks code quality
     "lint": "eslint src/"
   },
-  
-  // ==========================================================================
-  // DEPENDENCIES - LIBRARIES WE NEED
-  // ==========================================================================
-  // These are the tools/libraries that make our extension work.
-  // Run 'npm install' and it downloads all of these automatically.
-  
   "dependencies": {
-    // TensorFlow.js - The AI engine that runs locally in browser
-    // Size: ~2MB | Purpose: Detect phishing patterns
     "@tensorflow/tfjs": "^4.15.0",
-    
-    // TensorFlow.js Layers - For loading our trained model
     "@tensorflow/tfjs-layers": "^4.15.0"
   },
-  
-  // Dev dependencies = tools for building/testing (not needed at runtime)
   "devDependencies": {
-    // Webpack - Bundles all our files into one extension
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",
-    
-    // ESLint - Checks our code for errors
     "eslint": "^8.55.0",
-    
-    // Copy plugin - Copies static files (icons, models) to build folder
     "copy-webpack-plugin": "^11.0.0"
   },
-  
-  // Keywords for searchability
   "keywords": ["phishing", "security", "gmail", "outlook", "ai", "tensorflow"],
-  
-  // Open source license
   "license": "MIT",
-  
-  // Who made this
   "author": "Gucci"
 }
