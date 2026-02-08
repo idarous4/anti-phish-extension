@@ -259,15 +259,32 @@ function removeExistingOverlay() {
 
 function updateStats(score) {
   try {
+    // Check if chrome.storage is available
+    if (!chrome.storage || !chrome.storage.local) {
+      log('⚠️ Storage not available');
+      return;
+    }
+    
     chrome.storage.local.get(['scanned', 'blocked'], (r) => {
-      const scanned = (r.scanned || 0) + 1;
-      // Only count as blocked if HIGH risk (score < 30), not medium
-      const blocked = (r.blocked || 0) + (score < 30 ? 1 : 0);
-      chrome.storage.local.set({ scanned, blocked });
-      log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
+      // Check for runtime errors (extension context invalidated)
+      if (chrome.runtime.lastError) {
+        log('⚠️ Storage error (extension may have reloaded)');
+        return;
+      }
+      
+      const scanned = (r?.scanned || 0) + 1;
+      const blocked = (r?.blocked || 0) + (score < 30 ? 1 : 0);
+      
+      chrome.storage.local.set({ scanned, blocked }, () => {
+        if (chrome.runtime.lastError) {
+          // Silent fail - extension context may have changed
+          return;
+        }
+        log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
+      });
     });
   } catch (e) {
-    log('⚠️ Stats error:', e);
+    // Silent fail - don't spam console
   }
 }
 
