@@ -143,6 +143,6 @@
   // ==========================================================================
   // Allows loading TensorFlow.js from CDN
   "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; object-src 'self'"
   }
 }
