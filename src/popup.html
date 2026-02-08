@@ -3,76 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    * { box-sizing: border-box; }
     body {
-      width: 320px;
-      padding: 20px;
+      width: 340px;
+      padding: 0;
+      margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .header {
+      background: rgba(255,255,255,0.95);
+      padding: 20px;
+      text-align: center;
+      border-bottom: 3px solid #1a73e8;
     }
     h1 {
-      font-size: 18px;
+      font-size: 20px;
       color: #1a73e8;
-      margin: 0 0 15px 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
-    .status {
-      background: #e8f5e9;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 15px;
+    .content {
+      background: white;
+      padding: 20px;
     }
-    .status.protected {
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
       background: #e8f5e9;
       color: #2e7d32;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .btn-primary {
-      background: #1a73e8;
-      color: white;
-    }
-    .btn-secondary {
-      background: #f5f5f5;
-      color: #333;
-    }
-    .stats {
-      margin: 15px 0;
-      padding: 15px 0;
-      border-top: 1px solid #eee;
-      border-bottom: 1px solid #eee;
-    }
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 5px 0;
-      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 15px;
     }
     .toggle-container {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin: 15px 0;
-      padding: 10px;
+      padding: 12px;
       background: #f8f9fa;
-      border-radius: 8px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .toggle-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toggle-icon {
+      font-size: 20px;
+    }
+    .toggle-text {
+      font-size: 13px;
     }
     .toggle-label {
-      font-size: 14px;
-      font-weight: 500;
+      font-weight: 600;
+      color: #333;
     }
     .toggle-sublabel {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
     }
     .toggle-switch {
       position: relative;
-      width: 50px;
-      height: 26px;
+      width: 44px;
+      height: 24px;
     }
     .toggle-switch input {
       opacity: 0;
@@ -87,96 +87,138 @@
       right: 0;
       bottom: 0;
       background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
+      transition: .3s;
+      border-radius: 24px;
     }
     .slider:before {
       position: absolute;
       content: "";
       height: 18px;
       width: 18px;
-      left: 4px;
-      bottom: 4px;
+      left: 3px;
+      bottom: 3px;
       background-color: white;
-      transition: .4s;
+      transition: .3s;
       border-radius: 50%;
     }
     input:checked + .slider {
       background-color: #1a73e8;
     }
     input:checked + .slider:before {
-      transform: translateX(24px);
+      transform: translateX(20px);
     }
-    .tips-section {
-      margin-top: 15px;
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 15px;
     }
-    .tips-title {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #333;
+    .stat-box {
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
     }
-    .tip-item {
+    .stat-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a73e8;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .tip-section {
+      background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+      border-left: 4px solid #ffc107;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    .tip-title {
       font-size: 12px;
-      color: #555;
-      margin: 8px 0;
-      padding: 8px;
-      background: #f0f4f8;
-      border-radius: 6px;
-      border-left: 3px solid #1a73e8;
+      font-weight: 600;
+      color: #856404;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .footer {
+      padding: 15px 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+    }
+    .github-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #333;
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .github-btn:hover {
+      background: #555;
     }
   </style>
 </head>
 <body>
-  <h1>🛡️ Anti-Phish Shield</h1>
-  
-  <div class="status protected">
-    ✅ Protection Active
+  <div class="header">
+    <h1>🛡️ Anti-Phish Shield</h1>
   </div>
   
-  <!-- Learning Mode Toggle -->
-  <div class="toggle-container">
-    <div>
-      <div class="toggle-label">📚 Learning Mode</div>
-      <div class="toggle-sublabel">Show educational tips</div>
+  <div class="content">
+    <div class="status-badge">
+      ✅ Protection Active
     </div>
-    <label class="toggle-switch">
-      <input type="checkbox" id="learning-mode-toggle">
-      <span class="slider"></span>
-    </label>
+    
+    <!-- Learning Mode Toggle -->
+    <div class="toggle-container">
+      <div class="toggle-info">
+        <span class="toggle-icon">📚</span>
+        <div class="toggle-text">
+          <div class="toggle-label">Learning Mode</div>
+          <div class="toggle-sublabel">Get tips on suspicious emails</div>
+        </div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="learning-mode-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-number" id="scanned">0</div>
+        <div class="stat-label">Scanned</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number" id="blocked">0</div>
+        <div class="stat-label">Threats</div>
+      </div>
+    </div>
+    
+    <!-- Rotating Tip -->
+    <div class="tip-section">
+      <div class="tip-title">💡 Did You Know?</div>
+      <div id="tip-container">
+        <!-- Tip will be inserted by JavaScript -->
+      </div>
+    </div>
   </div>
   
-  <div class="stats">
-    <div class="stat-row">
-      <span>Emails Scanned:</span>
-      <span id="scanned">0</span>
-    </div>
-    <div class="stat-row">
-      <span>Threats Blocked:</span>
-      <span id="blocked">0</span>
-    </div>
+  <div class="footer">
+    <button class="github-btn" id="github-btn">
+      🐙 View on GitHub
+    </button>
   </div>
-  
-  <!-- Quick Tips Section -->
-  <div class="tips-section">
-    <div class="tips-title">🎯 How to Spot Phishing:</div>
-    <div class="tip-item">
-      <strong>Urgency:</strong> "Act now!" or "Account suspended!"
-    </div>
-    <div class="tip-item">
-      <strong>Fake Sender:</strong> PayPal logo but @gmail.com email
-    </div>
-    <div class="tip-item">
-      <strong>Suspicious Links:</strong> Hover to see real destination
-    </div>
-    <div class="tip-item">
-      <strong>Grammar Errors:</strong> Poor spelling or awkward phrases
-    </div>
-  </div>
-  
-  <button class="btn-secondary" id="github-btn" style="margin-top: 15px;">
-    View on GitHub
-  </button>
   
   <script src="popup.js"></script>
 </body>

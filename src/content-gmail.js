@@ -268,10 +268,86 @@ function showTrustOverlay(score, issues, emailData) {
   
   document.body.appendChild(overlay);
   
+  // Add learning section if risk is medium/high
+  if (score < 70) {
+    addLearningSection(score, issues);
+  }
+  
   document.getElementById('aph-dismiss').onclick = () => overlay.remove();
   document.getElementById('aph-report').onclick = () => {
-    alert('Reported! Thanks for helping.');
+    alert('📧 Reported! Thanks for helping.');
   };
+}
+
+/**
+ * Add learning section for medium/high risk emails
+ */
+async function addLearningSection(score, issues) {
+  try {
+    // Check if learning mode is enabled
+    const result = await chrome.storage.local.get(['learningMode']);
+    if (!result.learningMode) return;
+    
+    const overlay = document.getElementById('anti-phish-overlay');
+    if (!overlay) return;
+    
+    // Create learning section
+    const learningDiv = document.createElement('div');
+    learningDiv.id = 'anti-phish-learning';
+    learningDiv.style.cssText = `
+      margin-top: 15px;
+      padding: 15px;
+      background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+      border-radius: 10px;
+      border: 2px solid #ffc107;
+    `;
+    
+    const isHighRisk = score < 30;
+    
+    let learningContent = '';
+    if (isHighRisk) {
+      learningContent = `
+        <div style="font-size: 16px; font-weight: bold; color: #d32f2f; margin-bottom: 10px;">
+          🚨 HIGH RISK - Learn Why
+        </div>
+        <div style="font-size: 13px; color: #333; line-height: 1.6;">
+          This email shows <strong>multiple red flags</strong> commonly used in phishing attacks:
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Creating false urgency to pressure quick action</li>
+            <li>Impersonating trusted brands to gain trust</li>
+            <li>Using deceptive links to steal credentials</li>
+          </ul>
+          <div style="background: #ffebee; padding: 10px; border-radius: 6px; margin-top: 10px;">
+            <strong>💡 What to do:</strong> Delete this email. If concerned, contact the company directly through their official website (not via this email).
+          </div>
+        </div>
+      `;
+    } else {
+      learningContent = `
+        <div style="font-size: 16px; font-weight: bold; color: #f57c00; margin-bottom: 10px;">
+          ⚠️ MEDIUM RISK - Be Careful
+        </div>
+        <div style="font-size: 13px; color: #333; line-height: 1.6;">
+          This email has some suspicious elements worth noting:
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Check sender address carefully</li>
+            <li>Hover over links before clicking</li>
+            <li>Look for unusual requests or language</li>
+          </ul>
+          <div style="background: #fff3e0; padding: 10px; border-radius: 6px; margin-top: 10px;">
+            <strong>💡 What to do:</strong> Proceed with caution. Verify through official channels if this requests any action.
+          </div>
+        </div>
+      `;
+    }
+    
+    learningDiv.innerHTML = learningContent;
+    overlay.appendChild(learningDiv);
+    
+    log('📚 Learning section added');
+  } catch (e) {
+    // Silent fail
+  }
 }
 
 function removeExistingOverlay() {
