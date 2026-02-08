@@ -1,0 +1,392 @@
+/**
+ * ============================================================================
+ * STYLES FOR ANTI-PHISH EXTENSION
+ * ============================================================================
+ * 
+ * WHAT IS THIS FILE?
+ * This CSS file styles our trust overlay and any other UI elements we add
+ * to Gmail/Outlook. It gets automatically injected by the manifest.json.
+ * 
+ * DESIGN PRINCIPLES:
+ * - Clean and professional (looks like it belongs in Gmail)
+ * - High contrast for readability
+ * - Color-coded: Green (safe), Orange (caution), Red (danger)
+ * - Responsive (works on different screen sizes)
+ * - Non-intrusive (doesn't block email content)
+ * ============================================================================
+ */
+
+/* ==========================================================================
+   TRUST OVERLAY STYLES
+   The floating card that shows trust score
+   ========================================================================== */
+
+#anti-phish-overlay {
+  /* Positioning - floats in top-right corner */
+  position: fixed !important;
+  top: 80px !important;
+  right: 20px !important;
+  z-index: 999999 !important; /* On top of everything */
+  
+  /* Size */
+  width: 320px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  
+  /* Appearance */
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+  
+  /* Spacing */
+  padding: 16px !important;
+  
+  /* Typography */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+               'Helvetica Neue', Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #333333 !important;
+  
+  /* Animation - smooth fade in */
+  animation: anti-phish-fade-in 0.3s ease-out !important;
+}
+
+/* Animation keyframes */
+@keyframes anti-phish-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   RISK LEVEL COLORS
+   Different border colors based on trust score
+   ========================================================================== */
+
+/* High Risk (0-30) - Red */
+#anti-phish-overlay.anti-phish-high {
+  border: 3px solid #f44336 !important;
+}
+
+#anti-phish-overlay.anti-phish-high .trust-score-value {
+  color: #f44336 !important;
+}
+
+#anti-phish-overlay.anti-phish-high .risk-title {
+  color: #f44336 !important;
+}
+
+/* Medium Risk (31-69) - Orange/Yellow */
+#anti-phish-overlay.anti-phish-medium {
+  border: 3px solid #ff9800 !important;
+}
+
+#anti-phish-overlay.anti-phish-medium .trust-score-value {
+  color: #ff9800 !important;
+}
+
+#anti-phish-overlay.anti-phish-medium .risk-title {
+  color: #ff9800 !important;
+}
+
+/* Low Risk (70-100) - Green */
+#anti-phish-overlay.anti-phish-low {
+  border: 3px solid #4caf50 !important;
+}
+
+#anti-phish-overlay.anti-phish-low .trust-score-value {
+  color: #4caf50 !important;
+}
+
+#anti-phish-overlay.anti-phish-low .risk-title {
+  color: #4caf50 !important;
+}
+
+/* ==========================================================================
+   OVERLAY HEADER
+   Contains icon and trust score number
+   ========================================================================== */
+
+.anti-phish-header {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+}
+
+.anti-phish-icon {
+  font-size: 28px !important;
+  margin-right: 12px !important;
+  line-height: 1 !important;
+}
+
+.trust-score-container {
+  flex: 1 !important;
+}
+
+.trust-score-value {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+.trust-score-label {
+  font-size: 12px !important;
+  color: #666666 !important;
+  margin-top: 2px !important;
+}
+
+/* ==========================================================================
+   RISK TITLE
+   "HIGH RISK", "MEDIUM RISK", "LOW RISK"
+   ========================================================================== */
+
+.risk-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* ==========================================================================
+   SENDER INFO
+   Shows who the email is from
+   ========================================================================== */
+
+.sender-info {
+  font-size: 12px !important;
+  color: #666666 !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #eeeeee !important;
+}
+
+.sender-info strong {
+  color: #333333 !important;
+}
+
+/* ==========================================================================
+   ISSUES LIST
+   Shows what problems were detected
+   ========================================================================== */
+
+.issues-section {
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #eeeeee !important;
+}
+
+.issues-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #666666 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin-bottom: 8px !important;
+}
+
+.issues-list {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.issues-list li {
+  font-size: 12px !important;
+  color: #555555 !important;
+  margin-bottom: 6px !important;
+  padding-left: 16px !important;
+  position: relative !important;
+}
+
+.issues-list li::before {
+  content: "⚠️" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  font-size: 10px !important;
+}
+
+/* ==========================================================================
+   ACTION BUTTONS
+   Dismiss and Report buttons
+   ========================================================================== */
+
+.anti-phish-actions {
+  margin-top: 16px !important;
+  display: flex !important;
+  gap: 8px !important;
+}
+
+.anti-phish-btn {
+  flex: 1 !important;
+  padding: 10px 16px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-align: center !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.anti-phish-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.anti-phish-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* Secondary button (Dismiss) */
+.anti-phish-btn-secondary {
+  background: #f5f5f5 !important;
+  color: #666666 !important;
+  border: 1px solid #dddddd !important;
+}
+
+.anti-phish-btn-secondary:hover {
+  background: #eeeeee !important;
+}
+
+/* Primary button (Report) */
+.anti-phish-btn-primary {
+  background: #1a73e8 !important;
+  color: white !important;
+}
+
+.anti-phish-btn-primary:hover {
+  background: #1557b0 !important;
+}
+
+/* ==========================================================================
+   EMAIL LIST INDICATORS
+   Shows risk level in inbox list view (future feature)
+   ========================================================================== */
+
+.email-risk-indicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  margin-right: 8px !important;
+}
+
+.email-risk-high {
+  background: #f44336 !important;
+}
+
+.email-risk-medium {
+  background: #ff9800 !important;
+}
+
+.email-risk-low {
+  background: #4caf50 !important;
+}
+
+/* ==========================================================================
+   LOADING STATE
+   Shows while AI is analyzing
+   ========================================================================== */
+
+.anti-phish-loading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+}
+
+.anti-phish-spinner {
+  width: 24px !important;
+  height: 24px !important;
+  border: 3px solid #f3f3f3 !important;
+  border-top: 3px solid #1a73e8 !important;
+  border-radius: 50% !important;
+  animation: anti-phish-spin 1s linear infinite !important;
+}
+
+@keyframes anti-phish-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.anti-phish-loading-text {
+  margin-left: 12px !important;
+  font-size: 14px !important;
+  color: #666666 !important;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   Adjust for smaller screens
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  #anti-phish-overlay {
+    width: calc(100% - 40px) !important;
+    right: 20px !important;
+    left: 20px !important;
+    max-height: 300px !important;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE SUPPORT
+   For users with dark Gmail theme (future feature)
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  #anti-phish-overlay {
+    background: #2d2d2d !important;
+    color: #ffffff !important;
+  }
+  
+  .sender-info {
+    color: #aaaaaa !important;
+    border-color: #444444 !important;
+  }
+  
+  .issues-list li {
+    color: #cccccc !important;
+  }
+  
+  .anti-phish-btn-secondary {
+    background: #3d3d3d !important;
+    color: #ffffff !important;
+    border-color: #555555 !important;
+  }
+}
+
+/* ==========================================================================
+   UTILITY CLASSES
+   Helper styles
+   ========================================================================== */
+
+.anti-phish-hidden {
+  display: none !important;
+}
+
+.anti-phish-fade-out {
+  animation: anti-phish-fade-out 0.3s ease-out forwards !important;
+}
+
+@keyframes anti-phish-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
