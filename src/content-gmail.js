@@ -218,11 +218,34 @@ function extractEmailData() {
   const subjectElement = document.querySelector('h2[data-legacy-thread-id]');
   const subject = subjectElement ? subjectElement.innerText.trim() : 'No Subject';
   
-  // Extract sender
-  // Gmail puts sender email in [email] attribute
-  const senderElement = document.querySelector('[email]');
-  const sender = senderElement ? senderElement.getAttribute('email') : 'Unknown';
-  const senderName = senderElement ? senderElement.innerText.trim() : 'Unknown';
+  // Extract sender - look specifically in the email header area
+  // The sender info is in the email header, not just any element with [email]
+  const emailHeader = document.querySelector('[role="main"] [data-message-id]') || 
+                      document.querySelector('[data-legacy-thread-id]');
+  
+  let sender = 'Unknown';
+  let senderName = 'Unknown';
+  
+  if (emailHeader) {
+    // Try to find sender in the header area specifically
+    const senderSpan = emailHeader.querySelector('span[email]') || 
+                       emailHeader.closest('[role="main"]').querySelector('span[email]');
+    if (senderSpan) {
+      sender = senderSpan.getAttribute('email') || 'Unknown';
+      senderName = senderSpan.innerText.trim() || 'Unknown';
+    }
+  }
+  
+  // Fallback to any [email] element if still unknown
+  if (sender === 'Unknown') {
+    const fallbackSender = document.querySelector('[role="main"] [email]') ||
+                          document.querySelector('h3 [email]') ||
+                          document.querySelector('span[email]');
+    if (fallbackSender) {
+      sender = fallbackSender.getAttribute('email') || 'Unknown';
+      senderName = fallbackSender.innerText.trim() || 'Unknown';
+    }
+  }
   
   // Extract body
   // The email body has class 'a3s aiL' in Gmail
@@ -452,6 +475,9 @@ function showTrustOverlay(score, issues, emailData) {
   // Add to page
   document.body.appendChild(overlay);
   
+  // Update stats in storage
+  updateStats(score);
+  
   // Add event listeners (inline onclick doesn't work in content scripts due to CSP)
   const dismissBtn = document.getElementById('anti-phish-dismiss');
   const reportBtn = document.getElementById('anti-phish-report');
@@ -507,6 +533,28 @@ if (window.location.hostname.includes('mail.google.com')) {
   }
 } else {
   console.log('[Anti-Phish] Not on Gmail, skipping...');
+}
+
+/**
+ * Update stats in Chrome storage
+ */
+function updateStats(score) {
+  chrome.storage.local.get(['emailsScanned', 'threatsBlocked'], function(result) {
+    let scanned = (result.emailsScanned || 0) + 1;
+    let blocked = result.threatsBlocked || 0;
+    
+    // If score is low (high risk), count as threat blocked
+    if (score < 50) {
+      blocked += 1;
+    }
+    
+    chrome.storage.local.set({
+      emailsScanned: scanned,
+      threatsBlocked: blocked
+    }, function() {
+      log('📊 Stats updated - Scanned:', scanned, 'Blocked:', blocked);
+    });
+  });
 }
 
 /**

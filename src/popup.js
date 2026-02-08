@@ -1,8 +1,15 @@
 // Popup script - runs when user clicks extension icon
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize stats
-  document.getElementById('scanned').textContent = '0';
-  document.getElementById('blocked').textContent = '0';
+  // Load stats from storage
+  chrome.storage.local.get(['emailsScanned', 'threatsBlocked'], function(result) {
+    const scanned = result.emailsScanned || 0;
+    const blocked = result.threatsBlocked || 0;
+    
+    document.getElementById('scanned').textContent = scanned;
+    document.getElementById('blocked').textContent = blocked;
+    
+    console.log('[Anti-Phish Popup] Stats loaded - Scanned:', scanned, 'Blocked:', blocked);
+  });
   
   // GitHub button click handler
   document.getElementById('github-btn').addEventListener('click', function() {
