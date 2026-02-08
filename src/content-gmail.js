@@ -358,12 +358,13 @@ function showTrustOverlay(score, issues, emailData) {
 
   document.body.appendChild(overlay);
 
-  // Add learning section if risk is medium/high
+  // Add learning section and questionnaire for medium/high risk
   if (score < 70) {
     addLearningSection(score, issues);
-    // Add interactive questionnaire for medium/high risk
-    setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
   }
+  
+  // Add validation questionnaire for ALL emails (helps us learn)
+  setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
 
   document.getElementById('aph-dismiss').onclick = () => overlay.remove();
   document.getElementById('aph-report').onclick = () => {
@@ -597,12 +598,12 @@ function addValidationQuestionnaire(score, emailData) {
 }
 
 /**
- * Generate contextual questions based on sender
+ * Generate contextual questions based on sender and risk
  */
 function generateQuestions(sender, domain, isHighRisk) {
   const questions = [];
   
-  // Always ask about familiarity
+  // Always ask about familiarity (most important)
   questions.push({
     id: 'know_sender',
     text: 'Do you recognize this sender or have you emailed them before?',
@@ -611,7 +612,7 @@ function generateQuestions(sender, domain, isHighRisk) {
   });
   
   // Check if it's a known service
-  const knownServices = ['amazon.com', 'paypal.com', 'apple.com', 'google.com', 'microsoft.com', 'netflix.com', 'spotify.com', 'github.com'];
+  const knownServices = ['amazon.com', 'paypal.com', 'apple.com', 'google.com', 'microsoft.com', 'netflix.com', 'spotify.com', 'github.com', 'facebook.com', 'twitter.com', 'linkedin.com'];
   const isKnownService = knownServices.some(s => domain.includes(s));
   
   if (isKnownService) {
@@ -621,9 +622,17 @@ function generateQuestions(sender, domain, isHighRisk) {
       correctAnswer: 'yes',
       feedback: 'If you don\'t have an account with them, this is definitely phishing!'
     });
+  } else if (domain) {
+    // For unknown domains
+    questions.push({
+      id: 'expecting_unknown',
+      text: `Were you expecting any email from ${domain}?`,
+      correctAnswer: 'yes',
+      feedback: 'Unexpected emails from unknown domains are high risk. Verify before clicking!'
+    });
   }
   
-  // Ask about expecting email
+  // Ask about expecting email (always relevant)
   questions.push({
     id: 'expecting',
     text: 'Were you expecting an email about this topic?',
@@ -631,7 +640,7 @@ function generateQuestions(sender, domain, isHighRisk) {
     feedback: 'Unexpected emails requesting action are major red flags!'
   });
   
-  // For high risk, add more questions
+  // For high risk, add safety question
   if (isHighRisk) {
     questions.push({
       id: 'clicked_links',
