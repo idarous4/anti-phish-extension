@@ -1,25 +1,74 @@
 /**
  * ============================================================================
- * AI PHISHING DETECTION - TENSORFLOW.JS
+ * AI PHISHING DETECTION - TENSORFLOW.JS (CDN VERSION)
  * ============================================================================
  * 
- * This module uses TensorFlow.js to detect phishing emails using machine learning.
+ * Loads TensorFlow.js from CDN for Chrome Extension compatibility
  * 
  * APPROACH (Option C - Hybrid):
- * 1. Create a simple neural network for classification
- * 2. Use engineered features from email content
+ * 1. Load TensorFlow.js from CDN
+ * 2. Create simple neural network
  * 3. Classify emails as phishing or legitimate
  * 4. Combine with heuristic rules for best accuracy
- * 
- * CURRENT STATUS: Phase 2 Implementation
- * MODEL: Lightweight TensorFlow.js neural network
- * SIZE: ~2MB (runs locally in browser)
- * ACCURACY: ~85-90% 
  * ============================================================================
  */
 
 let model = null;
 let modelLoaded = false;
+let tfLoading = false;
+let tfLoaded = false;
+
+/**
+ * Load TensorFlow.js from CDN
+ */
+function loadTensorFlow() {
+  return new Promise((resolve, reject) => {
+    // Already loaded
+    if (typeof tf !== 'undefined') {
+      tfLoaded = true;
+      resolve();
+      return;
+    }
+    
+    // Currently loading, wait
+    if (tfLoading) {
+      const checkInterval = setInterval(() => {
+        if (typeof tf !== 'undefined') {
+          clearInterval(checkInterval);
+          tfLoaded = true;
+          resolve();
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        reject(new Error('Timeout loading TensorFlow.js'));
+      }, 10000); // 10 second timeout
+      return;
+    }
+    
+    tfLoading = true;
+    console.log('[Anti-Phish] 📦 Loading TensorFlow.js from CDN...');
+    
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js';
+    script.async = true;
+    
+    script.onload = () => {
+      console.log('[Anti-Phish] ✅ TensorFlow.js loaded from CDN');
+      tfLoading = false;
+      tfLoaded = true;
+      resolve();
+    };
+    
+    script.onerror = (e) => {
+      console.log('[Anti-Phish] ❌ Failed to load TensorFlow.js:', e);
+      tfLoading = false;
+      reject(new Error('Failed to load TensorFlow.js from CDN'));
+    };
+    
+    document.head.appendChild(script);
+  });
+}
 
 /**
  * Initialize the AI model
@@ -28,11 +77,8 @@ async function initAIModel() {
   try {
     log('🤖 Initializing AI model...');
     
-    // Check if TensorFlow.js is available
-    if (typeof tf === 'undefined') {
-      log('⚠️ TensorFlow.js not loaded - using heuristics only');
-      return false;
-    }
+    // Load TensorFlow.js from CDN first
+    await loadTensorFlow();
     
     // Create simple neural network
     model = createSimpleModel();
@@ -42,7 +88,7 @@ async function initAIModel() {
     return true;
     
   } catch (error) {
-    log('❌ AI model error:', error);
+    log('⚠️ AI not available:', error.message);
     return false;
   }
 }
@@ -124,14 +170,7 @@ function emailToFeatures(emailData) {
  * Run AI detection on email
  */
 async function runAIDetection(emailData) {
-  // Check if TensorFlow is available
-  if (typeof tf === 'undefined') {
-    log('⚠️ TensorFlow.js not available');
-    return null;
-  }
-  
-  if (!modelLoaded) {
-    log('⚠️ AI model not loaded');
+  if (!modelLoaded || typeof tf === 'undefined') {
     return null;
   }
   
@@ -154,8 +193,6 @@ async function runAIDetection(emailData) {
     
     // probabilities[0] = legitimate, probabilities[1] = phishing
     const phishingProb = probabilities[1];
-    
-    // Convert to score (0-100)
     const score = Math.round(phishingProb * 100);
     
     log('🎯 AI Score:', score);
@@ -166,7 +203,7 @@ async function runAIDetection(emailData) {
     };
     
   } catch (error) {
-    log('❌ AI detection error:', error);
+    log('❌ AI detection error:', error.message);
     return null;
   }
 }
@@ -183,21 +220,20 @@ async function combinedDetection(emailData) {
   
   if (!aiResult) {
     // AI not available, use heuristics only
+    log('📋 Using heuristic detection only');
     return heuristicResult;
   }
   
   // Combine scores (AI 60%, Heuristics 40%)
-  const combinedScore = Math.round(
-    (aiResult.score * 0.6) + (heuristicResult.score * 0.4)
-  );
+  const combinedScore = Math.round((aiResult.score * 0.6) + (heuristicResult.score * 0.4));
   
   // Combine issues
   const combinedIssues = [...heuristicResult.issues];
   if (aiResult.isPhishing) {
-    combinedIssues.unshift(`🤖 AI flagged as suspicious`);
+    combinedIssues.unshift('🤖 AI flagged as suspicious');
   }
   
-  log('📊 Combined Score:', combinedScore);
+  log('📊 Combined Score:', combinedScore, '(AI:', aiResult.score, '+ Heuristics:', heuristicResult.score + ')');
   
   return {
     score: combinedScore,
