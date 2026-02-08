@@ -358,6 +358,9 @@ function showTrustOverlay(score, issues, emailData) {
 
   document.body.appendChild(overlay);
 
+  // Show previous feedback/reputation if available
+  showPreviousFeedback(emailData.sender);
+
   // Add learning section and questionnaire for medium/high risk only
   if (score < 70) {
     addLearningSection(score, issues);
@@ -696,6 +699,95 @@ function saveUserFeedback(sender, questionId, answer) {
       log('💾 Feedback saved for', sender);
     });
   } catch (e) {}
+}
+
+/**
+ * Get sender reputation based on user feedback
+ * Returns: 'trusted' | 'unknown' | 'suspicious'
+ */
+function getSenderReputation(sender, callback) {
+  if (!chrome.storage || !chrome.storage.local) {
+    callback('unknown');
+    return;
+  }
+  
+  const feedbackKey = `feedback_${sender}`;
+  chrome.storage.local.get([feedbackKey], function(result) {
+    if (chrome.runtime.lastError || !result[feedbackKey]) {
+      callback('unknown');
+      return;
+    }
+    
+    const feedback = result[feedbackKey];
+    const responses = feedback.responses || [];
+    
+    if (responses.length === 0) {
+      callback('unknown');
+      return;
+    }
+    
+    // Check if user knows sender
+    const knowSenderResponses = responses.filter(r => r.questionId === 'know_sender');
+    if (knowSenderResponses.length > 0) {
+      const lastResponse = knowSenderResponses[knowSenderResponses.length - 1];
+      if (lastResponse.answer === 'yes') {
+        callback('trusted');
+        return;
+      } else {
+        callback('suspicious');
+        return;
+      }
+    }
+    
+    callback('unknown');
+  });
+}
+
+/**
+ * Show user's previous feedback in the overlay
+ */
+function showPreviousFeedback(sender) {
+  getSenderReputation(sender, function(reputation) {
+    const overlay = document.getElementById('anti-phish-overlay');
+    if (!overlay) return;
+    
+    let badgeHtml = '';
+    if (reputation === 'trusted') {
+      badgeHtml = `
+        <div style="margin: 12px 24px 0; padding: 10px 14px; background: #e8f5e9; border-radius: 10px; 
+                    border-left: 4px solid #4caf50; display: flex; align-items: center;"
+        >
+          <span style="font-size: 18px; margin-right: 10px;">✅</span>
+          <div>
+            <div style="font-weight: 600; color: #2e7d32; font-size: 13px;">Trusted Sender</div>
+            <div style="font-size: 11px; color: #555;">You previously confirmed knowing this sender</div>
+          </div>
+        </div>
+      `;
+    } else if (reputation === 'suspicious') {
+      badgeHtml = `
+        <div style="margin: 12px 24px 0; padding: 10px 14px; background: #ffebee; border-radius: 10px; 
+                    border-left: 4px solid #f44336; display: flex; align-items: center;"
+        >
+          <span style="font-size: 18px; margin-right: 10px;">⚠️</span>
+          <div>
+            <div style="font-weight: 600; color: #c62828; font-size: 13px;">Previously Flagged</div>
+            <div style="font-size: 11px; color: #555;">You previously said you don't know this sender</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    if (badgeHtml) {
+      const header = overlay.querySelector('div[style*="height: 8px"]');
+      if (header) {
+        const badgeDiv = document.createElement('div');
+        badgeDiv.innerHTML = badgeHtml;
+        header.insertAdjacentElement('afterend', badgeDiv.firstElementChild);
+        log('🏷️ Reputation badge added:', reputation);
+      }
+    }
+  });
 }
 
 if (window.location.hostname.includes('mail.google.com')) {
