@@ -2,22 +2,22 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[Anti-Phish Popup] Loading...');
   
-  // Load stats from localStorage (more reliable)
-  const scanned = parseInt(localStorage.getItem('antiPhish_scanned') || '0');
-  const blocked = parseInt(localStorage.getItem('antiPhish_blocked') || '0');
-  const learningMode = localStorage.getItem('antiPhish_learningMode') === 'true';
+  // Try to load stats - first from chrome.storage, fallback to defaults
+  loadStats();
   
-  document.getElementById('scanned').textContent = scanned;
-  document.getElementById('blocked').textContent = blocked;
+  // Also set up a refresh every 2 seconds while popup is open
+  const refreshInterval = setInterval(loadStats, 2000);
   
-  const toggle = document.getElementById('learning-mode-toggle');
-  if (toggle) toggle.checked = learningMode;
-  
-  console.log('[Anti-Phish Popup] Loaded - Scanned:', scanned, 'Blocked:', blocked);
+  // Clean up interval when popup closes
+  window.addEventListener('unload', () => clearInterval(refreshInterval));
   
   // Learning Mode Toggle
   const learningToggle = document.getElementById('learning-mode-toggle');
   if (learningToggle) {
+    // Load saved state
+    const savedMode = localStorage.getItem('antiPhish_learningMode') === 'true';
+    learningToggle.checked = savedMode;
+    
     learningToggle.addEventListener('change', function() {
       const isEnabled = this.checked;
       localStorage.setItem('antiPhish_learningMode', isEnabled.toString());
@@ -32,6 +32,33 @@ document.addEventListener('DOMContentLoaded', function() {
   // Rotate tips
   rotateTips();
 });
+
+/**
+ * Load stats from chrome.storage
+ */
+function loadStats() {
+  // Try chrome.storage first (shared across extension)
+  if (chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['scanned', 'blocked'], function(result) {
+      if (chrome.runtime.lastError) {
+        console.log('[Anti-Phish] Storage error');
+        return;
+      }
+      
+      const scanned = result.scanned || 0;
+      const blocked = result.blocked || 0;
+      
+      document.getElementById('scanned').textContent = scanned;
+      document.getElementById('blocked').textContent = blocked;
+      
+      console.log('[Anti-Phish Popup] Stats - Scanned:', scanned, 'Blocked:', blocked);
+    });
+  } else {
+    // Fallback to display 0
+    document.getElementById('scanned').textContent = '0';
+    document.getElementById('blocked').textContent = '0';
+  }
+}
 
 /**
  * Rotate phishing tips - show different tip each time

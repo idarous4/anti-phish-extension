@@ -223,18 +223,18 @@ function showTrustOverlay(score, issues, emailData) {
   const overlay = document.createElement('div');
   overlay.id = 'anti-phish-overlay';
   overlay.style.cssText = `
-    position: fixed; 
-    top: 80px; 
-    right: 20px; 
+    position: fixed;
+    top: 80px;
+    right: 20px;
     width: 380px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); 
-    border: 3px solid ${color}; 
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 3px solid ${color};
     border-radius: 16px;
-    padding: 24px; 
+    padding: 24px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    z-index: 999999; 
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-    font-size: 15px; 
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px;
     color: #212121;
   `;
 
@@ -302,15 +302,16 @@ function showTrustOverlay(score, issues, emailData) {
 /**
  * Add learning section for medium/high risk emails
  */
-async function addLearningSection(score, issues) {
-  try {
-    // Check if learning mode is enabled
-    const result = await chrome.storage.local.get(['learningMode']);
-    if (!result.learningMode) return;
-
+function addLearningSection(score, issues) {
+  // Check if learning mode is enabled via chrome.storage
+  if (!chrome.storage || !chrome.storage.local) return;
+  
+  chrome.storage.local.get(['learningMode'], function(result) {
+    if (chrome.runtime.lastError || !result.learningMode) return;
+    
     const overlay = document.getElementById('anti-phish-overlay');
     if (!overlay) return;
-
+    
     // Create learning section
     const learningDiv = document.createElement('div');
     learningDiv.id = 'anti-phish-learning';
@@ -321,9 +322,9 @@ async function addLearningSection(score, issues) {
       border-radius: 10px;
       border: 2px solid #ffc107;
     `;
-
+    
     const isHighRisk = score < 30;
-
+    
     let learningContent = '';
     if (isHighRisk) {
       learningContent = `
@@ -360,14 +361,12 @@ async function addLearningSection(score, issues) {
         </div>
       `;
     }
-
+    
     learningDiv.innerHTML = learningContent;
     overlay.appendChild(learningDiv);
-
+    
     log('📚 Learning section added');
-  } catch (e) {
-    // Silent fail
-  }
+  });
 }
 
 function removeExistingOverlay() {
@@ -377,26 +376,28 @@ function removeExistingOverlay() {
 
 function updateStats(score) {
   try {
-    // Use localStorage as fallback since chrome.storage might not work
-    let scanned = parseInt(localStorage.getItem('antiPhish_scanned') || '0');
-    let blocked = parseInt(localStorage.getItem('antiPhish_blocked') || '0');
-
-    scanned += 1;
-    if (score < 30) {
-      blocked += 1;
-    }
-
-    localStorage.setItem('antiPhish_scanned', scanned.toString());
-    localStorage.setItem('antiPhish_blocked', blocked.toString());
-
-    // Also try chrome.storage if available
+    // Use chrome.storage to sync with popup
     if (chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ scanned, blocked });
-    }
+      chrome.storage.local.get(['scanned', 'blocked'], function(result) {
+        if (chrome.runtime.lastError) {
+          log('⚠️ Storage read error');
+          return;
+        }
 
-    log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
+        let scanned = (result.scanned || 0) + 1;
+        let blocked = (result.blocked || 0) + (score < 30 ? 1 : 0);
+
+        chrome.storage.local.set({ scanned, blocked }, function() {
+          if (chrome.runtime.lastError) {
+            log('⚠️ Storage write error');
+            return;
+          }
+          log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
+        });
+      });
+    }
   } catch (e) {
-    log('⚠️ Stats error:', e);
+    log('⚠️ Stats error:', e.message);
   }
 }
 
