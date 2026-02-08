@@ -361,6 +361,8 @@ function showTrustOverlay(score, issues, emailData) {
   // Add learning section if risk is medium/high
   if (score < 70) {
     addLearningSection(score, issues);
+    // Add interactive questionnaire for medium/high risk
+    setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
   }
 
   document.getElementById('aph-dismiss').onclick = () => overlay.remove();
@@ -482,6 +484,183 @@ function updateStats(score) {
   } catch (e) {
     log('⚠️ Stats error:', e.message);
   }
+}
+
+/**
+ * Add interactive validation questionnaire for medium/high risk emails
+ * Learns from user responses to improve future detection
+ */
+function addValidationQuestionnaire(score, emailData) {
+  if (!chrome.runtime || !chrome.runtime.id) return;
+  
+  const overlay = document.getElementById('anti-phish-overlay');
+  if (!overlay) return;
+  
+  const isHighRisk = score < 30;
+  const sender = emailData.sender.toLowerCase();
+  const domain = sender.split('@')[1] || '';
+  
+  // Generate questions based on risk level and sender
+  const questions = generateQuestions(sender, domain, isHighRisk);
+  
+  const questionnaireDiv = document.createElement('div');
+  questionnaireDiv.id = 'anti-phish-questionnaire';
+  questionnaireDiv.style.cssText = `
+    margin-top: 16px;
+    padding: 20px;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 16px;
+    border: 2px solid #2196f3;
+    animation: aph-fade-in 0.5s ease;
+  `;
+  
+  if (!document.getElementById('aph-anim-styles')) {
+    const style = document.createElement('style');
+    style.id = 'aph-anim-styles';
+    style.textContent += `
+      @keyframes aph-fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  questionnaireDiv.innerHTML = `
+    <div style="font-size: 15px; font-weight: 700; color: #1565c0; margin-bottom: 12px; display: flex; align-items: center;">
+      <span style="font-size: 20px; margin-right: 8px;">🤔</span>
+      Quick Verification
+    </div>
+    <div style="font-size: 12px; color: #424242; margin-bottom: 16px; line-height: 1.5;">
+      Help us learn! Answer these to improve detection:
+    </div>
+    
+    ${questions.map((q, index) => `
+      <div class="aph-question" data-question="${q.id}" style="margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 10px;">
+          ${index + 1}. ${q.text}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="window.aphAnswer('${q.id}', 'yes', '${sender}')" 
+                  style="flex: 1; padding: 10px; border: 2px solid #4caf50; border-radius: 10px; 
+                         background: #fff; color: #4caf50; cursor: pointer; font-weight: 600; font-size: 13px;
+                         transition: all 0.2s;"
+                  onmouseover="this.style.background='#4caf50'; this.style.color='#fff';"
+                  onmouseout="this.style.background='#fff'; this.style.color='#4caf50';">
+            ✓ Yes
+          </button>
+          <button onclick="window.aphAnswer('${q.id}', 'no', '${sender}')" 
+                  style="flex: 1; padding: 10px; border: 2px solid #f44336; border-radius: 10px; 
+                         background: #fff; color: #f44336; cursor: pointer; font-weight: 600; font-size: 13px;
+                         transition: all 0.2s;"
+                  onmouseover="this.style.background='#f44336'; this.style.color='#fff';"
+                  onmouseout="this.style.background='#fff'; this.style.color='#f44336';">
+            ✗ No
+          </button>
+        </div>
+        <div class="aph-feedback-${q.id}" style="display: none; margin-top: 10px; padding: 10px; 
+             background: ${q.correctAnswer === 'yes' ? '#e8f5e9' : '#ffebee'}; 
+             border-radius: 8px; font-size: 12px; color: #333;">
+          <strong>💡 ${q.feedback}</strong>
+        </div>
+      </div>
+    `).join('')}
+    
+    <div id="aph-thanks" style="display: none; text-align: center; padding: 15px; 
+         background: #e8f5e9; border-radius: 12px; margin-top: 15px;">
+      <div style="font-size: 24px; margin-bottom: 8px;">🎉</div>
+      <div style="font-size: 14px; font-weight: 600; color: #2e7d32;">Thanks for helping us learn!</div>
+      <div style="font-size: 12px; color: #555; margin-top: 5px;">Your feedback improves detection for everyone.</div>
+    </div>
+  `;
+  
+  overlay.appendChild(questionnaireDiv);
+  
+  // Store answer handler globally
+  window.aphAnswer = function(questionId, answer, sender) {
+    const feedbackDiv = document.querySelector(`.aph-feedback-${questionId}`);
+    if (feedbackDiv) {
+      feedbackDiv.style.display = 'block';
+    }
+    
+    // Save to storage for learning
+    saveUserFeedback(sender, questionId, answer);
+    
+    // Check if all answered
+    const allAnswered = document.querySelectorAll('[class^="aph-feedback-"]:not([style*="display: none"])').length;
+    if (allAnswered >= questions.length) {
+      document.getElementById('aph-thanks').style.display = 'block';
+    }
+  };
+  
+  log('📝 Questionnaire added');
+}
+
+/**
+ * Generate contextual questions based on sender
+ */
+function generateQuestions(sender, domain, isHighRisk) {
+  const questions = [];
+  
+  // Always ask about familiarity
+  questions.push({
+    id: 'know_sender',
+    text: 'Do you recognize this sender or have you emailed them before?',
+    correctAnswer: 'yes',
+    feedback: 'Knowing the sender reduces risk. If NO, be extra cautious!'
+  });
+  
+  // Check if it's a known service
+  const knownServices = ['amazon.com', 'paypal.com', 'apple.com', 'google.com', 'microsoft.com', 'netflix.com', 'spotify.com', 'github.com'];
+  const isKnownService = knownServices.some(s => domain.includes(s));
+  
+  if (isKnownService) {
+    questions.push({
+      id: 'use_service',
+      text: `Do you have an account with ${domain}?`,
+      correctAnswer: 'yes',
+      feedback: 'If you don\'t have an account with them, this is definitely phishing!'
+    });
+  }
+  
+  // Ask about expecting email
+  questions.push({
+    id: 'expecting',
+    text: 'Were you expecting an email about this topic?',
+    correctAnswer: 'yes',
+    feedback: 'Unexpected emails requesting action are major red flags!'
+  });
+  
+  // For high risk, add more questions
+  if (isHighRisk) {
+    questions.push({
+      id: 'clicked_links',
+      text: 'Have you clicked any links in this email yet?',
+      correctAnswer: 'no',
+      feedback: 'Good! Never click links in suspicious emails. Go to the website directly.'
+    });
+  }
+  
+  return questions.slice(0, 3); // Max 3 questions
+}
+
+/**
+ * Save user feedback for future learning
+ */
+function saveUserFeedback(sender, questionId, answer) {
+  try {
+    if (!chrome.storage || !chrome.storage.local) return;
+    
+    const feedbackKey = `feedback_${sender}`;
+    chrome.storage.local.get([feedbackKey], function(result) {
+      const feedback = result[feedbackKey] || { responses: [], lastUpdated: Date.now() };
+      feedback.responses.push({ questionId, answer, timestamp: Date.now() });
+      feedback.lastUpdated = Date.now();
+      
+      chrome.storage.local.set({ [feedbackKey]: feedback });
+      log('💾 Feedback saved for', sender);
+    });
+  } catch (e) {}
 }
 
 if (window.location.hostname.includes('mail.google.com')) {
