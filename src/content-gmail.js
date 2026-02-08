@@ -179,17 +179,20 @@ function runHeuristics(emailData) {
 function showTrustOverlay(score, issues, emailData) {
   removeExistingOverlay();
   
-  let color, icon, title;
+  let color, icon, title, bgColor;
   if (score < 30) {
     color = '#f44336'; // Red
+    bgColor = '#ffebee'; // Light red background
     icon = '🔴';
     title = 'HIGH RISK - Likely Phishing';
   } else if (score < 70) {
     color = '#ff9800'; // Orange
+    bgColor = '#fff3e0'; // Light orange background
     icon = '🟡';
     title = 'MEDIUM RISK - Be Cautious';
   } else {
     color = '#4caf50'; // Green
+    bgColor = '#e8f5e9'; // Light green background
     icon = '🟢';
     title = 'LOW RISK - Appears Safe';
   }
@@ -198,15 +201,16 @@ function showTrustOverlay(score, issues, emailData) {
   overlay.id = 'anti-phish-overlay';
   overlay.style.cssText = `
     position: fixed; top: 80px; right: 20px; width: 380px;
-    background: #ffffff; border: 4px solid ${color}; border-radius: 12px;
+    background: ${bgColor}; border: 4px solid ${color}; border-radius: 12px;
     padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #333333;
+    z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+    font-size: 15px; color: #212121;
   `;
   
   let issuesHtml = issues.length ? `
-    <div style="margin: 15px 0; padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800; color: #333;">
-      <strong style="color: #e65100; font-size: 14px;">⚠️ Issues Found:</strong>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #333; font-size: 14px;">
+    <div style="margin: 15px 0; padding: 15px; background: #ffffff; border-radius: 8px; border-left: 4px solid ${color}; color: #212121;">
+      <strong style="color: ${color}; font-size: 14px;">⚠️ Issues Found:</strong>
+      <ul style="margin: 10px 0 0 20px; padding: 0; color: #212121; font-size: 14px;">
         ${issues.map(i => `<li style="margin-bottom: 6px;">${i}</li>`).join('')}
       </ul>
     </div>
@@ -217,14 +221,14 @@ function showTrustOverlay(score, issues, emailData) {
       <span style="font-size: 32px; margin-right: 12px;">${icon}</span>
       <div>
         <div style="font-size: 28px; font-weight: bold; color: ${color};">${score}/100</div>
-        <div style="font-size: 13px; color: #666;">Trust Score</div>
+        <div style="font-size: 13px; color: #555;">Trust Score</div>
       </div>
     </div>
     <div style="color: ${color}; font-weight: bold; font-size: 16px; margin-bottom: 10px; text-transform: uppercase;">${title}</div>
-    <div style="font-size: 14px; color: #333; margin-bottom: 15px; font-weight: 500;">📧 From: ${emailData.sender}</div>
+    <div style="font-size: 14px; color: #212121; margin-bottom: 15px; font-weight: 500;">📧 From: ${emailData.sender}</div>
     ${issuesHtml}
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-      <button id="aph-dismiss" style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f5f5f5; color: #333; cursor: pointer; font-weight: 600; font-size: 14px;">Dismiss</button>
+      <button id="aph-dismiss" style="flex: 1; padding: 12px; border: 2px solid #bbb; border-radius: 8px; background: #ffffff; color: #333; cursor: pointer; font-weight: 600; font-size: 14px;">Dismiss</button>
       <button id="aph-report" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-weight: 600; font-size: 14px;">Report</button>
     </div>
   `;
