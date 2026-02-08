@@ -358,13 +358,12 @@ function showTrustOverlay(score, issues, emailData) {
 
   document.body.appendChild(overlay);
 
-  // Add learning section and questionnaire for medium/high risk
+  // Add learning section and questionnaire for medium/high risk only
   if (score < 70) {
     addLearningSection(score, issues);
+    // Add interactive questionnaire for medium/high risk
+    setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
   }
-  
-  // Add validation questionnaire for ALL emails (helps us learn)
-  setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
 
   document.getElementById('aph-dismiss').onclick = () => overlay.remove();
   document.getElementById('aph-report').onclick = () => {
