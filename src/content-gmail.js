@@ -439,15 +439,11 @@ function showTrustOverlay(score, issues, emailData) {
     ${issuesHtml}
     <div style="margin-top: 15px; display: flex; gap: 10px;">
       <button id="anti-phish-dismiss" 
-              style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f8f9fa; cursor: pointer; font-size: 15px; font-weight: 600; color: #444; transition: all 0.2s;"
-              onmouseover="this.style.background='#e9ecef'" 
-              onmouseout="this.style.background='#f8f9fa'">
+              style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f8f9fa; cursor: pointer; font-size: 15px; font-weight: 600; color: #444; transition: all 0.2s;">
         ✕ Dismiss
       </button>
       <button id="anti-phish-report"
-              style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-              onmouseover="this.style.opacity='0.9'" 
-              onmouseout="this.style.opacity='1'">
+              style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
         🚩 Report
       </button>
     </div>
@@ -456,15 +452,32 @@ function showTrustOverlay(score, issues, emailData) {
   // Add to page
   document.body.appendChild(overlay);
   
-  // Add event listeners (inline onclick doesn't work well in content scripts)
-  document.getElementById('anti-phish-dismiss').addEventListener('click', function() {
+  // Add event listeners (inline onclick doesn't work in content scripts due to CSP)
+  const dismissBtn = document.getElementById('anti-phish-dismiss');
+  const reportBtn = document.getElementById('anti-phish-report');
+  
+  dismissBtn.addEventListener('click', function() {
     removeExistingOverlay();
   });
   
-  document.getElementById('anti-phish-report').addEventListener('click', function() {
+  dismissBtn.addEventListener('mouseenter', function() {
+    this.style.background = '#e9ecef';
+  });
+  
+  dismissBtn.addEventListener('mouseleave', function() {
+    this.style.background = '#f8f9fa';
+  });
+  
+  reportBtn.addEventListener('click', function() {
     alert('📧 Reported!\n\nThank you for helping improve detection.\n\nThis email will be used to train our AI model.');
-    // Optional: Send report to background script
-    // chrome.runtime.sendMessage({action: 'reportPhishing', data: emailData});
+  });
+  
+  reportBtn.addEventListener('mouseenter', function() {
+    this.style.opacity = '0.9';
+  });
+  
+  reportBtn.addEventListener('mouseleave', function() {
+    this.style.opacity = '1';
   });
   
   log('✅ Trust overlay displayed');
