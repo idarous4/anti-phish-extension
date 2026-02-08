@@ -13,6 +13,7 @@ const CONFIG = {
 
 let currentEmailId = null;
 let isAnalyzing = false;
+let scannedEmails = new Set(); // Track already-scanned emails to prevent duplicates
 
 function log(...args) {
   if (CONFIG.DEBUG) {
@@ -75,8 +76,17 @@ async function analyzeCurrentEmail() {
 
     // Use combined AI + Heuristics detection
     const result = await combinedDetection(emailData);
-    showTrustOverlay(result.score, result.issues, emailData);
-    updateStats(result.score);
+    
+    // Check if already scanned this email ID
+    if (scannedEmails.has(currentEmailId)) {
+      log('📧 Already scanned this email, skipping stats update');
+      showTrustOverlay(result.score, result.issues, emailData);
+      // Don't update stats for duplicate
+    } else {
+      scannedEmails.add(currentEmailId);
+      showTrustOverlay(result.score, result.issues, emailData);
+      updateStats(result.score);
+    }
 
   } catch (error) {
     log('❌ Error:', error);
@@ -364,8 +374,14 @@ function showTrustOverlay(score, issues, emailData) {
   // Add learning section and questionnaire for medium/high risk only
   if (score < 70) {
     addLearningSection(score, issues);
-    // Add interactive questionnaire for medium/high risk
-    setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
+    // Only ask questions if sender is NOT already trusted
+    checkIfTrusted(emailData.sender, function(isTrusted) {
+      if (!isTrusted) {
+        setTimeout(() => addValidationQuestionnaire(score, emailData), 500);
+      } else {
+        log('✅ Sender is trusted - skipping questionnaire');
+      }
+    });
   }
 
   document.getElementById('aph-dismiss').onclick = () => overlay.remove();
@@ -740,6 +756,15 @@ function getSenderReputation(sender, callback) {
     }
     
     callback('unknown');
+  });
+}
+
+/**
+ * Check if sender is already trusted by user
+ */
+function checkIfTrusted(sender, callback) {
+  getSenderReputation(sender, function(reputation) {
+    callback(reputation === 'trusted');
   });
 }
 
