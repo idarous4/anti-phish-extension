@@ -537,25 +537,19 @@ function addValidationQuestionnaire(score, emailData) {
     </div>
     
     ${questions.map((q, index) => `
-      <div class="aph-question" data-question="${q.id}" style="margin-bottom: 16px;">
+      <div class="aph-question" data-question="${q.id}" data-sender="${sender}" style="margin-bottom: 16px;">
         <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 10px;">
           ${index + 1}. ${q.text}
         </div>
         <div style="display: flex; gap: 8px;">
-          <button onclick="window.aphAnswer('${q.id}', 'yes', '${sender}')" 
+          <button class="aph-yes-btn" data-question="${q.id}" data-answer="yes" 
                   style="flex: 1; padding: 10px; border: 2px solid #4caf50; border-radius: 10px; 
-                         background: #fff; color: #4caf50; cursor: pointer; font-weight: 600; font-size: 13px;
-                         transition: all 0.2s;"
-                  onmouseover="this.style.background='#4caf50'; this.style.color='#fff';"
-                  onmouseout="this.style.background='#fff'; this.style.color='#4caf50';">
+                         background: #fff; color: #4caf50; cursor: pointer; font-weight: 600; font-size: 13px;">
             ✓ Yes
           </button>
-          <button onclick="window.aphAnswer('${q.id}', 'no', '${sender}')" 
+          <button class="aph-no-btn" data-question="${q.id}" data-answer="no"
                   style="flex: 1; padding: 10px; border: 2px solid #f44336; border-radius: 10px; 
-                         background: #fff; color: #f44336; cursor: pointer; font-weight: 600; font-size: 13px;
-                         transition: all 0.2s;"
-                  onmouseover="this.style.background='#f44336'; this.style.color='#fff';"
-                  onmouseout="this.style.background='#fff'; this.style.color='#f44336';">
+                         background: #fff; color: #f44336; cursor: pointer; font-weight: 600; font-size: 13px;">
             ✗ No
           </button>
         </div>
@@ -577,24 +571,57 @@ function addValidationQuestionnaire(score, emailData) {
   
   overlay.appendChild(questionnaireDiv);
   
-  // Store answer handler globally
-  window.aphAnswer = function(questionId, answer, sender) {
-    const feedbackDiv = document.querySelector(`.aph-feedback-${questionId}`);
-    if (feedbackDiv) {
-      feedbackDiv.style.display = 'block';
+  // Add event listeners (CSP-compliant, no inline handlers)
+  questions.forEach(q => {
+    const yesBtn = questionnaireDiv.querySelector(`button[data-question="${q.id}"][data-answer="yes"]`);
+    const noBtn = questionnaireDiv.querySelector(`button[data-question="${q.id}"][data-answer="no"]`);
+    
+    if (yesBtn) {
+      yesBtn.addEventListener('click', () => handleAnswer(q.id, 'yes', sender, questions.length));
+      yesBtn.addEventListener('mouseenter', () => {
+        yesBtn.style.background = '#4caf50';
+        yesBtn.style.color = '#fff';
+      });
+      yesBtn.addEventListener('mouseleave', () => {
+        yesBtn.style.background = '#fff';
+        yesBtn.style.color = '#4caf50';
+      });
     }
     
-    // Save to storage for learning
-    saveUserFeedback(sender, questionId, answer);
-    
-    // Check if all answered
-    const allAnswered = document.querySelectorAll('[class^="aph-feedback-"]:not([style*="display: none"])').length;
-    if (allAnswered >= questions.length) {
-      document.getElementById('aph-thanks').style.display = 'block';
+    if (noBtn) {
+      noBtn.addEventListener('click', () => handleAnswer(q.id, 'no', sender, questions.length));
+      noBtn.addEventListener('mouseenter', () => {
+        noBtn.style.background = '#f44336';
+        noBtn.style.color = '#fff';
+      });
+      noBtn.addEventListener('mouseleave', () => {
+        noBtn.style.background = '#fff';
+        noBtn.style.color = '#f44336';
+      });
     }
-  };
+  });
   
   log('📝 Questionnaire added');
+}
+
+/**
+ * Handle questionnaire answer
+ */
+function handleAnswer(questionId, answer, sender, totalQuestions) {
+  const feedbackDiv = document.querySelector(`.aph-feedback-${questionId}`);
+  if (feedbackDiv) {
+    feedbackDiv.style.display = 'block';
+  }
+  
+  // Save to storage for learning
+  saveUserFeedback(sender, questionId, answer);
+  
+  // Check if all answered
+  const answeredCount = document.querySelectorAll('[class^="aph-feedback-"]:not([style*="display: none"])').length;
+  const thanksDiv = document.getElementById('aph-thanks');
+  if (thanksDiv && answeredCount >= totalQuestions) {
+    thanksDiv.style.display = 'block';
+  }
 }
 
 /**
