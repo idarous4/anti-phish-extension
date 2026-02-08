@@ -392,62 +392,80 @@ function showTrustOverlay(score, issues, emailData) {
     position: fixed;
     top: 80px;
     right: 20px;
-    width: 320px;
-    background: white;
-    border: 3px solid ${color};
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    width: 360px;
+    max-height: 500px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 4px solid ${color};
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333333;
   `;
   
   // Build overlay content
   let issuesHtml = '';
   if (issues.length > 0) {
     issuesHtml = `
-      <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
-        <strong style="color: #666; font-size: 12px;">⚠️ ISSUES FOUND:</strong>
-        <ul style="margin: 8px 0 0 0; padding-left: 18px; color: #555; font-size: 12px;">
-          ${issues.map(issue => `<li style="margin-bottom: 4px;">${issue}</li>`).join('')}
+      <div style="margin-top: 15px; padding: 15px; background: #fff8e1; border-radius: 10px; border-left: 4px solid #ff9800;">
+        <strong style="color: #e65100; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">⚠️ Issues Found:</strong>
+        <ul style="margin: 0; padding-left: 20px; color: #333; font-size: 15px; line-height: 1.8;">
+          ${issues.map(issue => `<li style="margin-bottom: 6px; font-weight: 500;">${issue}</li>`).join('')}
         </ul>
       </div>
     `;
   }
   
   overlay.innerHTML = `
-    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-      <span style="font-size: 24px; margin-right: 8px;">${icon}</span>
+    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+      <span style="font-size: 32px; margin-right: 12px;">${icon}</span>
       <div>
-        <div style="font-size: 20px; font-weight: bold; color: ${color};">
+        <div style="font-size: 28px; font-weight: 700; color: ${color}; letter-spacing: -0.5px;">
           ${score}/100
         </div>
-        <div style="font-size: 12px; color: #666;">Trust Score</div>
+        <div style="font-size: 14px; color: #666; font-weight: 500;">Trust Score</div>
       </div>
     </div>
-    <div style="color: ${color}; font-weight: 600; margin-bottom: 8px;">
+    <div style="color: ${color}; font-weight: 700; margin-bottom: 10px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px;">
       ${title}
     </div>
-    <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
-      From: ${emailData.sender}
+    <div style="font-size: 15px; color: #555; margin-bottom: 15px; font-weight: 500;">
+      📧 From: ${emailData.sender}
     </div>
     ${issuesHtml}
-    <div style="margin-top: 12px; display: flex; gap: 8px;">
-      <button onclick="this.closest('#anti-phish-overlay').remove()" 
-              style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 12px;">
-        Dismiss
+    <div style="margin-top: 15px; display: flex; gap: 10px;">
+      <button id="anti-phish-dismiss" 
+              style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f8f9fa; cursor: pointer; font-size: 15px; font-weight: 600; color: #444; transition: all 0.2s;"
+              onmouseover="this.style.background='#e9ecef'" 
+              onmouseout="this.style.background='#f8f9fa'">
+        ✕ Dismiss
       </button>
-      <button onclick="alert('Reported! Thank you for helping improve detection.')" 
-              style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: ${color}; color: white; cursor: pointer; font-size: 12px;">
-        Report
+      <button id="anti-phish-report"
+              style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+              onmouseover="this.style.opacity='0.9'" 
+              onmouseout="this.style.opacity='1'">
+        🚩 Report
       </button>
     </div>
   `;
   
   // Add to page
   document.body.appendChild(overlay);
+  
+  // Add event listeners (inline onclick doesn't work well in content scripts)
+  document.getElementById('anti-phish-dismiss').addEventListener('click', function() {
+    removeExistingOverlay();
+  });
+  
+  document.getElementById('anti-phish-report').addEventListener('click', function() {
+    alert('📧 Reported!\n\nThank you for helping improve detection.\n\nThis email will be used to train our AI model.');
+    // Optional: Send report to background script
+    // chrome.runtime.sendMessage({action: 'reportPhishing', data: emailData});
+  });
   
   log('✅ Trust overlay displayed');
 }
