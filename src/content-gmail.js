@@ -218,33 +218,31 @@ function extractEmailData() {
   const subjectElement = document.querySelector('h2[data-legacy-thread-id]');
   const subject = subjectElement ? subjectElement.innerText.trim() : 'No Subject';
   
-  // Extract sender - look specifically in the email header area
-  // The sender info is in the email header, not just any element with [email]
-  const emailHeader = document.querySelector('[role="main"] [data-message-id]') || 
-                      document.querySelector('[data-legacy-thread-id]');
-  
+  // Extract sender - simpler approach
   let sender = 'Unknown';
   let senderName = 'Unknown';
   
-  if (emailHeader) {
-    // Try to find sender in the header area specifically
-    const senderSpan = emailHeader.querySelector('span[email]') || 
-                       emailHeader.closest('[role="main"]').querySelector('span[email]');
-    if (senderSpan) {
-      sender = senderSpan.getAttribute('email') || 'Unknown';
-      senderName = senderSpan.innerText.trim() || 'Unknown';
+  // Try multiple selectors to find sender
+  const senderSelectors = [
+    'h3 span[email]',
+    '[role="main"] span[email]',
+    '[data-message-id] span[email]',
+    '.gD',  // Gmail's sender class
+    'span[email]'
+  ];
+  
+  for (const selector of senderSelectors) {
+    const el = document.querySelector(selector);
+    if (el) {
+      sender = el.getAttribute('email') || el.textContent.trim();
+      senderName = el.textContent.trim();
+      log('✅ Found sender:', sender);
+      break;
     }
   }
   
-  // Fallback to any [email] element if still unknown
   if (sender === 'Unknown') {
-    const fallbackSender = document.querySelector('[role="main"] [email]') ||
-                          document.querySelector('h3 [email]') ||
-                          document.querySelector('span[email]');
-    if (fallbackSender) {
-      sender = fallbackSender.getAttribute('email') || 'Unknown';
-      senderName = fallbackSender.innerText.trim() || 'Unknown';
-    }
+    log('⚠️ Could not find sender with any selector');
   }
   
   // Extract body
@@ -539,22 +537,36 @@ if (window.location.hostname.includes('mail.google.com')) {
  * Update stats in Chrome storage
  */
 function updateStats(score) {
-  chrome.storage.local.get(['emailsScanned', 'threatsBlocked'], function(result) {
-    let scanned = (result.emailsScanned || 0) + 1;
-    let blocked = result.threatsBlocked || 0;
-    
-    // If score is low (high risk), count as threat blocked
-    if (score < 50) {
-      blocked += 1;
-    }
-    
-    chrome.storage.local.set({
-      emailsScanned: scanned,
-      threatsBlocked: blocked
-    }, function() {
-      log('📊 Stats updated - Scanned:', scanned, 'Blocked:', blocked);
+  // Use local variables if storage fails
+  try {
+    chrome.storage.local.get(['emailsScanned', 'threatsBlocked'], function(result) {
+      if (chrome.runtime.lastError) {
+        log('⚠️ Storage error:', chrome.runtime.lastError);
+        return;
+      }
+      
+      let scanned = (result.emailsScanned || 0) + 1;
+      let blocked = result.threatsBlocked || 0;
+      
+      // If score is low (high risk), count as threat blocked
+      if (score < 50) {
+        blocked += 1;
+      }
+      
+      chrome.storage.local.set({
+        emailsScanned: scanned,
+        threatsBlocked: blocked
+      }, function() {
+        if (chrome.runtime.lastError) {
+          log('⚠️ Storage save error:', chrome.runtime.lastError);
+        } else {
+          log('📊 Stats updated - Scanned:', scanned, 'Blocked:', blocked);
+        }
+      });
     });
-  });
+  } catch (e) {
+    log('❌ Stats update failed:', e);
+  }
 }
 
 /**
