@@ -218,14 +218,36 @@ function showTrustOverlay(score, issues, emailData) {
     font-size: 15px; color: #000000;
   `;
   
-  let issuesHtml = issues.length ? `
-    <div style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid ${color};">
-      <strong style="color: ${color}; font-size: 14px;">⚠️ Issues Found:</strong>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #000000; font-size: 14px;">
-        ${issues.map(i => `<li style="margin-bottom: 6px;">${i}</li>`).join('')}
-      </ul>
-    </div>
-  ` : '';
+  let issuesHtml = '';
+  if (issues.length > 0) {
+    const issuesWithExplanations = issues.map(issue => {
+      let explanation = '';
+      if (issue.includes('Urgency')) {
+        explanation = 'Phishing emails create fake urgency to pressure you into acting quickly.';
+      } else if (issue.includes('Spoof') || issue.includes('Brand')) {
+        explanation = 'Scammers impersonate trusted brands. Check the sender email carefully.';
+      } else if (issue.includes('Link')) {
+        explanation = 'Hover over links to see the real destination before clicking.';
+      } else if (issue.includes('sensitive') || issue.includes('password')) {
+        explanation = 'Legitimate companies NEVER ask for passwords via email.';
+      }
+      return { text: issue, explanation };
+    });
+    
+    issuesHtml = `
+      <div style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px; border-left: 4px solid ${color};">
+        <strong style="color: ${color}; font-size: 14px;">⚠️ Issues Found:</strong>
+        <ul style="margin: 10px 0 0 20px; padding: 0; color: #000000; font-size: 14px;">
+          ${issuesWithExplanations.map(i => `
+            <li style="margin-bottom: 10px;">
+              <div style="font-weight: 500;">${i.text}</div>
+              ${i.explanation ? `<div style="font-size: 12px; color: #555; margin-top: 4px; font-style: italic;">💡 ${i.explanation}</div>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
   
   overlay.innerHTML = `
     <div style="display: flex; align-items: center; margin-bottom: 15px;">

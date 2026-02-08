@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 300px;
+      width: 320px;
       padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
@@ -41,15 +41,89 @@
       color: #333;
     }
     .stats {
-      margin-top: 15px;
-      padding-top: 15px;
+      margin: 15px 0;
+      padding: 15px 0;
       border-top: 1px solid #eee;
+      border-bottom: 1px solid #eee;
     }
     .stat-row {
       display: flex;
       justify-content: space-between;
       margin: 5px 0;
       font-size: 13px;
+    }
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .toggle-sublabel {
+      font-size: 12px;
+      color: #666;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 26px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #1a73e8;
+    }
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+    .tips-section {
+      margin-top: 15px;
+    }
+    .tips-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .tip-item {
+      font-size: 12px;
+      color: #555;
+      margin: 8px 0;
+      padding: 8px;
+      background: #f0f4f8;
+      border-radius: 6px;
+      border-left: 3px solid #1a73e8;
     }
   </style>
 </head>
@@ -60,9 +134,17 @@
     ✅ Protection Active
   </div>
   
-  <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
-    Automatically scans emails for phishing attempts.
-  </p>
+  <!-- Learning Mode Toggle -->
+  <div class="toggle-container">
+    <div>
+      <div class="toggle-label">📚 Learning Mode</div>
+      <div class="toggle-sublabel">Show educational tips</div>
+    </div>
+    <label class="toggle-switch">
+      <input type="checkbox" id="learning-mode-toggle">
+      <span class="slider"></span>
+    </label>
+  </div>
   
   <div class="stats">
     <div class="stat-row">
@@ -75,7 +157,24 @@
     </div>
   </div>
   
-  <button class="btn-secondary" id="github-btn">
+  <!-- Quick Tips Section -->
+  <div class="tips-section">
+    <div class="tips-title">🎯 How to Spot Phishing:</div>
+    <div class="tip-item">
+      <strong>Urgency:</strong> "Act now!" or "Account suspended!"
+    </div>
+    <div class="tip-item">
+      <strong>Fake Sender:</strong> PayPal logo but @gmail.com email
+    </div>
+    <div class="tip-item">
+      <strong>Suspicious Links:</strong> Hover to see real destination
+    </div>
+    <div class="tip-item">
+      <strong>Grammar Errors:</strong> Poor spelling or awkward phrases
+    </div>
+  </div>
+  
+  <button class="btn-secondary" id="github-btn" style="margin-top: 15px;">
     View on GitHub
   </button>
   
