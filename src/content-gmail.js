@@ -138,18 +138,24 @@ function runHeuristics(emailData) {
     });
   }
   
-  // Suspicious links - only if clearly mismatched
+  // Suspicious links - only if clearly deceptive
   emailData.links.forEach(link => {
     if (link.text && link.href) {
-      const textLower = link.text.toLowerCase();
-      const hrefLower = link.href.toLowerCase();
+      const text = link.text.toLowerCase().trim();
+      const href = link.href.toLowerCase();
       
-      // If link text shows "paypal.com" but goes to different domain
-      if ((textLower.includes('paypal.com') || textLower.includes('google.com') || 
-           textLower.includes('amazon.com')) && 
-          !hrefLower.includes(textLower.match(/[\w-]+\.com/)?.[0] || '')) {
-        score -= 20;
-        issues.push(`🔗 Link text doesn't match URL`);
+      // Only flag if link TEXT shows a domain but goes somewhere completely different
+      // Example: text shows "paypal.com" but href goes to "evil-site.com"
+      const domainMatch = text.match(/([\w-]+\.com)/);
+      if (domainMatch) {
+        const textDomain = domainMatch[1]; // e.g., "paypal.com"
+        if (!href.includes(textDomain) && 
+            (textDomain === 'paypal.com' || textDomain === 'google.com' || 
+             textDomain === 'amazon.com' || textDomain === 'microsoft.com' ||
+             textDomain === 'apple.com' || textDomain === 'facebook.com')) {
+          score -= 20;
+          issues.push(`🔗 Link shows "${textDomain}" but goes elsewhere`);
+        }
       }
     }
   });
@@ -173,42 +179,53 @@ function runHeuristics(emailData) {
 function showTrustOverlay(score, issues, emailData) {
   removeExistingOverlay();
   
-  let color = score < 30 ? '#f44336' : score < 70 ? '#ff9800' : '#4caf50';
-  let icon = score < 30 ? '🔴' : score < 70 ? '🟡' : '🟢';
-  let title = score < 30 ? 'HIGH RISK' : score < 70 ? 'MEDIUM RISK' : 'LOW RISK';
+  let color, icon, title;
+  if (score < 30) {
+    color = '#f44336'; // Red
+    icon = '🔴';
+    title = 'HIGH RISK - Likely Phishing';
+  } else if (score < 70) {
+    color = '#ff9800'; // Orange
+    icon = '🟡';
+    title = 'MEDIUM RISK - Be Cautious';
+  } else {
+    color = '#4caf50'; // Green
+    icon = '🟢';
+    title = 'LOW RISK - Appears Safe';
+  }
   
   const overlay = document.createElement('div');
   overlay.id = 'anti-phish-overlay';
   overlay.style.cssText = `
-    position: fixed; top: 80px; right: 20px; width: 350px;
-    background: white; border: 4px solid ${color}; border-radius: 12px;
-    padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    z-index: 999999; font-family: system-ui; font-size: 15px;
+    position: fixed; top: 80px; right: 20px; width: 380px;
+    background: #ffffff; border: 4px solid ${color}; border-radius: 12px;
+    padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; color: #333333;
   `;
   
   let issuesHtml = issues.length ? `
-    <div style="margin: 15px 0; padding: 12px; background: #fff3e0; border-radius: 8px;">
-      <strong style="color: #e65100;">⚠️ Issues:</strong>
-      <ul style="margin: 8px 0 0 20px; padding: 0;">
-        ${issues.map(i => `<li>${i}</li>`).join('')}
+    <div style="margin: 15px 0; padding: 15px; background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800; color: #333;">
+      <strong style="color: #e65100; font-size: 14px;">⚠️ Issues Found:</strong>
+      <ul style="margin: 10px 0 0 20px; padding: 0; color: #333; font-size: 14px;">
+        ${issues.map(i => `<li style="margin-bottom: 6px;">${i}</li>`).join('')}
       </ul>
     </div>
   ` : '';
   
   overlay.innerHTML = `
-    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-      <span style="font-size: 28px; margin-right: 10px;">${icon}</span>
+    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+      <span style="font-size: 32px; margin-right: 12px;">${icon}</span>
       <div>
-        <div style="font-size: 26px; font-weight: bold; color: ${color};">${score}/100</div>
-        <div style="font-size: 12px; color: #666;">Trust Score</div>
+        <div style="font-size: 28px; font-weight: bold; color: ${color};">${score}/100</div>
+        <div style="font-size: 13px; color: #666;">Trust Score</div>
       </div>
     </div>
-    <div style="color: ${color}; font-weight: bold; font-size: 16px; margin-bottom: 8px;">${title}</div>
-    <div style="font-size: 14px; color: #555; margin-bottom: 10px;">📧 ${emailData.sender}</div>
+    <div style="color: ${color}; font-weight: bold; font-size: 16px; margin-bottom: 10px; text-transform: uppercase;">${title}</div>
+    <div style="font-size: 14px; color: #333; margin-bottom: 15px; font-weight: 500;">📧 From: ${emailData.sender}</div>
     ${issuesHtml}
     <div style="display: flex; gap: 10px; margin-top: 15px;">
-      <button id="aph-dismiss" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-weight: 600;">Dismiss</button>
-      <button id="aph-report" style="flex: 1; padding: 10px; border: none; border-radius: 6px; background: ${color}; color: white; cursor: pointer; font-weight: 600;">Report</button>
+      <button id="aph-dismiss" style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f5f5f5; color: #333; cursor: pointer; font-weight: 600; font-size: 14px;">Dismiss</button>
+      <button id="aph-report" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-weight: 600; font-size: 14px;">Report</button>
     </div>
   `;
   
