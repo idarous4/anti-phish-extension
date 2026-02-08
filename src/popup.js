@@ -2,44 +2,35 @@
 document.addEventListener('DOMContentLoaded', function() {
   console.log('[Anti-Phish Popup] Loading...');
   
-  // Load stats and settings
-  if (chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(['scanned', 'blocked', 'learningMode'], function(result) {
-      if (chrome.runtime.lastError) return;
-      
-      const scanned = result.scanned || 0;
-      const blocked = result.blocked || 0;
-      const learningMode = result.learningMode || false;
-      
-      document.getElementById('scanned').textContent = scanned;
-      document.getElementById('blocked').textContent = blocked;
-      
-      const toggle = document.getElementById('learning-mode-toggle');
-      if (toggle) toggle.checked = learningMode;
-    });
-  }
+  // Load stats from localStorage (more reliable)
+  const scanned = parseInt(localStorage.getItem('antiPhish_scanned') || '0');
+  const blocked = parseInt(localStorage.getItem('antiPhish_blocked') || '0');
+  const learningMode = localStorage.getItem('antiPhish_learningMode') === 'true';
+  
+  document.getElementById('scanned').textContent = scanned;
+  document.getElementById('blocked').textContent = blocked;
+  
+  const toggle = document.getElementById('learning-mode-toggle');
+  if (toggle) toggle.checked = learningMode;
+  
+  console.log('[Anti-Phish Popup] Loaded - Scanned:', scanned, 'Blocked:', blocked);
   
   // Learning Mode Toggle
   const learningToggle = document.getElementById('learning-mode-toggle');
   if (learningToggle) {
     learningToggle.addEventListener('change', function() {
       const isEnabled = this.checked;
+      localStorage.setItem('antiPhish_learningMode', isEnabled.toString());
+      
+      // Also save to chrome.storage if available
       if (chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ learningMode: isEnabled });
       }
     });
   }
   
-  // Rotate tips every time popup opens
+  // Rotate tips
   rotateTips();
-  
-  // GitHub button
-  const githubBtn = document.getElementById('github-btn');
-  if (githubBtn) {
-    githubBtn.addEventListener('click', function() {
-      window.open('https://github.com/idarous4/anti-phish-extension', '_blank');
-    });
-  }
 });
 
 /**
