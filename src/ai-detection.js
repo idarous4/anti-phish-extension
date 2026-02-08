@@ -28,6 +28,12 @@ async function initAIModel() {
   try {
     log('🤖 Initializing AI model...');
     
+    // Check if TensorFlow.js is available
+    if (typeof tf === 'undefined') {
+      log('⚠️ TensorFlow.js not loaded - using heuristics only');
+      return false;
+    }
+    
     // Create simple neural network
     model = createSimpleModel();
     modelLoaded = true;
@@ -116,11 +122,16 @@ function emailToFeatures(emailData) {
 
 /**
  * Run AI detection on email
- * Returns: { score: 0-100, confidence: 0-1, isPhishing: boolean }
  */
 async function runAIDetection(emailData) {
+  // Check if TensorFlow is available
+  if (typeof tf === 'undefined') {
+    log('⚠️ TensorFlow.js not available');
+    return null;
+  }
+  
   if (!modelLoaded) {
-    log('⚠️ AI model not loaded, falling back to heuristics');
+    log('⚠️ AI model not loaded');
     return null;
   }
   
@@ -143,17 +154,14 @@ async function runAIDetection(emailData) {
     
     // probabilities[0] = legitimate, probabilities[1] = phishing
     const phishingProb = probabilities[1];
-    const confidence = Math.max(probabilities[0], probabilities[1]);
     
     // Convert to score (0-100)
-    // Higher score = more likely phishing
     const score = Math.round(phishingProb * 100);
     
-    log('🎯 AI Score:', score, 'Confidence:', confidence.toFixed(2));
+    log('🎯 AI Score:', score);
     
     return {
       score: score,
-      confidence: confidence,
       isPhishing: phishingProb > 0.5
     };
     
@@ -165,39 +173,34 @@ async function runAIDetection(emailData) {
 
 /**
  * Combined detection: AI + Heuristics
- * This gives the best of both worlds
  */
 async function combinedDetection(emailData) {
-  // Run heuristic detection
-  const heuristicResult = runHeuristics(emailData);
-  
-  // Run AI detection
+  // Run AI detection if available
   const aiResult = await runAIDetection(emailData);
   
+  // Run heuristic detection (always works)
+  const heuristicResult = runHeuristics(emailData);
+  
   if (!aiResult) {
-    // AI failed, use heuristics only
+    // AI not available, use heuristics only
     return heuristicResult;
   }
   
-  // Combine scores (weighted average)
-  // AI: 60%, Heuristics: 40%
+  // Combine scores (AI 60%, Heuristics 40%)
   const combinedScore = Math.round(
     (aiResult.score * 0.6) + (heuristicResult.score * 0.4)
   );
   
   // Combine issues
   const combinedIssues = [...heuristicResult.issues];
-  if (aiResult.isPhishing && aiResult.confidence > 0.8) {
-    combinedIssues.unshift(`🤖 AI detected phishing pattern (${Math.round(aiResult.confidence * 100)}% confidence)`);
+  if (aiResult.isPhishing) {
+    combinedIssues.unshift(`🤖 AI flagged as suspicious`);
   }
   
-  log('📊 Combined Score:', combinedScore, '(AI:', aiResult.score, '+ Heuristics:', heuristicResult.score + ')');
+  log('📊 Combined Score:', combinedScore);
   
   return {
     score: combinedScore,
     issues: combinedIssues
   };
 }
-
-// Export functions for use in content script
-// In module system: export { initAIModel, runAIDetection, combinedDetection };
