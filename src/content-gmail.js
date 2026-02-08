@@ -224,19 +224,32 @@ function showTrustOverlay(score, issues, emailData) {
   overlay.id = 'anti-phish-overlay';
   overlay.style.cssText = `
     position: fixed;
-    top: 80px;
+    top: 20px;
     right: 20px;
-    width: 380px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border: 3px solid ${color};
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    width: 360px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 15px;
-    color: #212121;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    animation: aph-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   `;
+  
+  // Add animation
+  if (!document.getElementById('aph-styles')) {
+    const style = document.createElement('style');
+    style.id = 'aph-styles';
+    style.textContent = `
+      @keyframes aph-slide-in {
+        from { opacity: 0; transform: translateX(100px) scale(0.95); }
+        to { opacity: 1; transform: translateX(0) scale(1); }
+      }
+      #anti-phish-overlay button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+      #anti-phish-overlay button:active { transform: translateY(0); }
+    `;
+    document.head.appendChild(style);
+  }
 
   let issuesHtml = '';
   if (issues.length > 0) {
@@ -270,19 +283,76 @@ function showTrustOverlay(score, issues, emailData) {
   }
 
   overlay.innerHTML = `
-    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-      <span style="font-size: 32px; margin-right: 12px;">${icon}</span>
-      <div>
-        <div style="font-size: 28px; font-weight: bold; color: ${color};">${score}/100</div>
-        <div style="font-size: 13px; color: #333;">Trust Score</div>
+    <!-- Header with colored bar -->
+    <div style="height: 8px; background: ${color};"></div>
+    
+    <!-- Content -->
+    <div style="padding: 24px;">
+      <!-- Top: Score Circle + Status -->
+      <div style="display: flex; align-items: center; margin-bottom: 20px;">
+        <div style="
+          width: 70px; height: 70px; border-radius: 50%; 
+          background: conic-gradient(${color} ${score}%, #e8e8e8 ${score}%);
+          display: flex; align-items: center; justify-content: center;
+          margin-right: 16px; flex-shrink: 0;
+        ">
+          <div style="
+            width: 56px; height: 56px; border-radius: 50%; background: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 700; color: ${color};">
+            ${score}
+          </div>
+        </div>
+        <div>
+          <div style="font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Trust Score</div>
+          <div style="font-size: 20px; font-weight: 700; color: ${color};">${title}</div>
+        </div>
       </div>
-    </div>
-    <div style="color: ${color}; font-weight: bold; font-size: 16px; margin-bottom: 10px; text-transform: uppercase;">${title}</div>
-    <div style="font-size: 14px; color: #000000; margin-bottom: 15px; font-weight: 500;">📧 From: ${emailData.sender}</div>
-    ${issuesHtml}
-    <div style="display: flex; gap: 10px; margin-top: 15px;">
-      <button id="aph-dismiss" style="flex: 1; padding: 12px; border: 2px solid #999; border-radius: 8px; background: #fff; color: #000; cursor: pointer; font-weight: 600; font-size: 14px;">Dismiss</button>
-      <button id="aph-report" style="flex: 1; padding: 12px; border: none; border-radius: 8px; background: ${color}; color: white; cursor: pointer; font-weight: 600; font-size: 14px;">Report</button>
+      
+      <!-- Sender -->
+      <div style="
+        background: #f7f7f7; border-radius: 12px; padding: 12px 16px;
+        margin-bottom: ${issues.length > 0 ? '16px' : '20px'};
+        display: flex; align-items: center;
+      ">
+        <span style="font-size: 18px; margin-right: 10px;">📧</span>
+        <div style="overflow: hidden;">
+          <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Sender</div>
+          <div style="font-size: 14px; color: #333; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${emailData.sender}</div>
+        </div>
+      </div>
+      
+      ${issues.length > 0 ? `
+        <!-- Issues List -->
+        <div style="background: #fafafa; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-size: 12px; color: ${color}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+            ⚠️ ${issues.length} Issue${issues.length > 1 ? 's' : ''} Detected
+          </div>
+          ${issues.map(i => `
+            <div style="
+              display: flex; align-items: flex-start; 
+              padding: 10px 0; border-bottom: 1px solid #eee;
+            ">
+              <span style="margin-right: 10px; flex-shrink: 0;">${i.split(' ')[0]}</span>
+              <span style="font-size: 13px; color: #444; line-height: 1.4;">${i.substring(i.indexOf(' ') + 1)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      
+      <!-- Buttons -->
+      <div style="display: flex; gap: 12px;">
+        <button id="aph-dismiss" style="
+          flex: 1; padding: 14px; border: 1.5px solid #ddd; border-radius: 12px;
+          background: #fff; color: #555; cursor: pointer; font-weight: 600; font-size: 14px;
+          transition: all 0.2s;
+        ">Dismiss</button>
+        <button id="aph-report" style="
+          flex: 1; padding: 14px; border: none; border-radius: 12px;
+          background: ${color}; color: white; cursor: pointer; font-weight: 600; font-size: 14px;
+          transition: all 0.2s; box-shadow: 0 4px 15px ${color}40;
+        ">Report</button>
+      </div>
     </div>
   `;
 
