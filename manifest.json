@@ -130,19 +130,11 @@
   // WEB ACCESSIBLE RESOURCES
   // ==========================================================================
   // Files that Gmail/Outlook pages can access directly.
-  // Needed for TensorFlow.js model files.
   "web_accessible_resources": [
     {
       "resources": ["models/*"],
       "matches": ["*://mail.google.com/*", "*://outlook.live.com/*", "*://outlook.office.com/*"]
     }
-  ],
-  
-  // ==========================================================================
-  // CONTENT SECURITY POLICY
-  // ==========================================================================
-  // Allows loading TensorFlow.js from CDN
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; object-src 'self'"
-  }
+  ]
+}
 }
