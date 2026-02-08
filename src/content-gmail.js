@@ -105,31 +105,65 @@ function runHeuristics(emailData) {
   const issues = [];
   const body = emailData.body.toLowerCase();
   const subject = emailData.subject.toLowerCase();
+  const sender = emailData.sender.toLowerCase();
   
-  // Urgency words
-  const urgency = ['urgent', 'immediately', 'act now', 'verify now', 'suspended'];
-  urgency.forEach(word => {
-    if (body.includes(word) || subject.includes(word)) {
-      score -= 10;
-      issues.push(`Urgency: "${word}"`);
-    }
-  });
+  // Urgency words - only high-confidence phishing words
+  const urgencyWords = [
+    'act immediately', 'account suspended', 'verify your account', 
+    'urgent action required', 'security alert', 'unusual activity',
+    'confirm your identity', 'limited time offer expires'
+  ];
   
-  // Brand spoofing
-  const brands = ['paypal', 'apple', 'amazon', 'microsoft', 'google'];
-  brands.forEach(brand => {
-    if ((body.includes(brand) || subject.includes(brand)) && 
-        !emailData.sender.includes(brand)) {
-      score -= 20;
-      issues.push(`Spoof: Claims ${brand}`);
-    }
-  });
-  
-  // Suspicious links
-  emailData.links.forEach(link => {
-    if (link.text && link.href && !link.href.includes(link.text.substring(0, 10))) {
+  urgencyWords.forEach(phrase => {
+    if (body.includes(phrase) || subject.includes(phrase)) {
       score -= 15;
-      issues.push(`Link mismatch`);
+      issues.push(`⚠️ Urgency phrase detected`);
+    }
+  });
+  
+  // Brand spoofing - only if sender CLAIMS to be a brand but isn't
+  // Check sender display name vs actual email domain
+  const senderNameEl = document.querySelector('h3 span[email]');
+  if (senderNameEl) {
+    const displayName = senderNameEl.textContent.toLowerCase();
+    const actualEmail = senderNameEl.getAttribute('email') || '';
+    
+    // If display name says "PayPal" but email is @gmail.com
+    const spoofedBrands = ['paypal', 'apple', 'microsoft', 'amazon', 'google', 'bank'];
+    spoofedBrands.forEach(brand => {
+      if (displayName.includes(brand) && !actualEmail.includes(brand + '.com')) {
+        score -= 25;
+        issues.push(`🚨 Brand spoof: Claims to be ${brand}`);
+      }
+    });
+  }
+  
+  // Suspicious links - only if clearly mismatched
+  emailData.links.forEach(link => {
+    if (link.text && link.href) {
+      const textLower = link.text.toLowerCase();
+      const hrefLower = link.href.toLowerCase();
+      
+      // If link text shows "paypal.com" but goes to different domain
+      if ((textLower.includes('paypal.com') || textLower.includes('google.com') || 
+           textLower.includes('amazon.com')) && 
+          !hrefLower.includes(textLower.match(/[\w-]+\.com/)?.[0] || '')) {
+        score -= 20;
+        issues.push(`🔗 Link text doesn't match URL`);
+      }
+    }
+  });
+  
+  // Requests for sensitive info
+  const sensitivePhrases = [
+    'enter your password', 'provide your credit card', 'verify your ssn',
+    'confirm your bank details', 'update your payment information'
+  ];
+  
+  sensitivePhrases.forEach(phrase => {
+    if (body.includes(phrase)) {
+      score -= 20;
+      issues.push(`🔒 Requests sensitive information`);
     }
   });
   
@@ -195,7 +229,8 @@ function updateStats(score) {
   try {
     chrome.storage.local.get(['scanned', 'blocked'], (r) => {
       const scanned = (r.scanned || 0) + 1;
-      const blocked = (r.blocked || 0) + (score < 50 ? 1 : 0);
+      // Only count as blocked if HIGH risk (score < 30), not medium
+      const blocked = (r.blocked || 0) + (score < 30 ? 1 : 0);
       chrome.storage.local.set({ scanned, blocked });
       log('📊 Stats:', scanned, 'scanned,', blocked, 'blocked');
     });
