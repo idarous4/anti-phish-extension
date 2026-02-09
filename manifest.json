@@ -1,72 +1,21 @@
-/**
- * ============================================================================
- * ANTI-PHISH EXTENSION - MANIFEST.JSON
- * ============================================================================
- * 
- * WHAT IS THIS FILE?
- * This is the "birth certificate" of your extension. It tells Chrome:
- * - What your extension is called
- * - What permissions it needs
- * - Which files to load
- * - Where it works (Gmail, Outlook, etc.)
- * 
- * WHY MANIFEST V3?
- * Chrome requires Manifest V3 for all new extensions (as of 2024).
- * It's more secure and faster than the old Manifest V2.
- * 
- * DO NOT CHANGE EXTENSION ID - Chrome auto-generates this
- * ============================================================================
- */
-
 {
-  // ==========================================================================
-  // BASIC INFO
-  // ==========================================================================
   "manifest_version": 3,
   "name": "Anti-Phish Shield",
   "version": "1.0.0",
-  "description": "AI-powered phishing detection for Gmail & Outlook - Protects your inbox from scams",
-  
-  // Author info (fill in your details when publishing)
+  "description": "AI-powered phishing detection for Gmail \u0026 Outlook - Protects your inbox from scams",
   "author": "Gucci",
-  "homepage_url": "https://antiphish.io",
-  
-  // ==========================================================================
-  // PERMISSIONS - WHAT WE'RE ALLOWED TO DO
-  // ==========================================================================
-  // These are the "powers" your extension needs. Chrome will ask user to approve.
   "permissions": [
-    // activeTab - Lets us see what's on the current tab (the email you're reading)
     "activeTab",
-    
-    // storage - Lets us save settings locally (like "sensitivity: high")
     "storage",
-    
-    // scripting - Lets us inject code into Gmail/Outlook pages
     "scripting"
   ],
-  
-  // ==========================================================================
-  // HOST PERMISSIONS - WHERE WE'RE ALLOWED TO RUN
-  // ==========================================================================
-  // These are the websites your extension can access.
-  // We ONLY ask for email sites - no other websites.
   "host_permissions": [
-    // Gmail (both old and new interfaces)
     "*://mail.google.com/*",
     "*://*.googleusercontent.com/*",
-    
-    // Outlook web (personal and business)
     "*://outlook.live.com/*",
     "*://outlook.office.com/*",
     "*://outlook.office365.com/*"
   ],
-  
-  // ==========================================================================
-  // CONTENT SCRIPTS - THE "SPY" THAT RUNS INSIDE GMAIL
-  // ==========================================================================
-  // Content scripts are JavaScript files that run INSIDE the Gmail/Outlook page.
-  // They can read emails, modify the page, add buttons, etc.
   "content_scripts": [
     {
       "matches": ["*://mail.google.com/*"],
@@ -84,25 +33,10 @@
       "run_at": "document_end"
     }
   ],
-  
-  // ==========================================================================
-  // BACKGROUND SERVICE WORKER
-  // ==========================================================================
-  // This runs in the background, even when Gmail is closed.
-  // We use it for:
-  // - Updating phishing databases
-  // - Syncing settings
-  // - Handling messages from content scripts
   "background": {
     "service_worker": "src/background.js",
-    // Module type lets us use modern JavaScript (import/export)
     "type": "module"
   },
-  
-  // ==========================================================================
-  // POPUP - THE SETTINGS PANEL
-  // ==========================================================================
-  // When user clicks the extension icon in the toolbar, this popup appears.
   "action": {
     "default_popup": "src/popup.html",
     "default_title": "Anti-Phish Shield",
@@ -112,24 +46,11 @@
       "128": "icons/icon128.png"
     }
   },
-  
-  // ==========================================================================
-  // ICONS - DIFFERENT SIZES FOR DIFFERENT PLACES
-  // ==========================================================================
-  // Chrome needs different sizes for:
-  // - Toolbar (16px)
-  // - Extension page (48px)
-  // - Chrome Web Store (128px)
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  
-  // ==========================================================================
-  // WEB ACCESSIBLE RESOURCES
-  // ==========================================================================
-  // Files that Gmail/Outlook pages can access directly.
   "web_accessible_resources": [
     {
       "resources": ["models/*"],
