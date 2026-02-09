@@ -2,21 +2,18 @@
  * ============================================================================
  * CONTENT SCRIPT FOR OUTLOOK
  * ============================================================================
- * 
- * This script runs INSIDE Outlook's webpage and detects phishing emails.
  * Works with: outlook.live.com and outlook.office.com
  * ============================================================================
  */
 
-// Configuration
 const CONFIG = {
-  RISK_THRESHOLD: 50,
-  CHECK_INTERVAL: 1500,
+  CHECK_INTERVAL: 1000,
   DEBUG: true
 };
 
 let currentEmailId = null;
 let isAnalyzing = false;
+let lastEmailContent = '';
 
 function log(...args) {
   if (CONFIG.DEBUG) {
@@ -26,127 +23,244 @@ function log(...args) {
 
 function init() {
   log('🛡️ Anti-Phish Shield loaded on Outlook');
+  log('📍 URL:', window.location.href);
+  
+  // Start watching immediately
   watchForEmailOpens();
-  // Delay first check to let Outlook load
-  setTimeout(checkForOpenEmail, 2000);
+  
+  // Initial check after delay
+  setTimeout(() => {
+    log('🔍 Running initial check...');
+    checkForOpenEmail();
+  }, 3000);
 }
 
 function watchForEmailOpens() {
+  let lastUrl = window.location.href;
+  
+  // Watch for URL changes (Outlook uses hash routing)
+  setInterval(() => {
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      log('🔄 URL changed, checking for new email...');
+      setTimeout(checkForOpenEmail, 1000);
+    }
+  }, 500);
+  
+  // Watch for DOM changes
   const observer = new MutationObserver((mutations) => {
-    // Check if email content changed
+    let shouldCheck = false;
     for (const mutation of mutations) {
-      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-        setTimeout(checkForOpenEmail, 500);
-        break;
+      if (mutation.addedNodes.length > 0) {
+        // Check if any added node might be email content
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1) { // Element node
+            const text = node.innerText || node.textContent || '';
+            if (text.length > 100 && text.includes('@')) {
+              shouldCheck = true;
+              break;
+            }
+          }
+        }
       }
+      if (shouldCheck) break;
+    }
+    
+    if (shouldCheck && !isAnalyzing) {
+      setTimeout(checkForOpenEmail, 800);
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
-  setInterval(checkForOpenEmail, CONFIG.CHECK_INTERVAL);
+  
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true,
+    characterData: true 
+  });
+  
+  log('👀 Watching for email opens...');
 }
 
 function checkForOpenEmail() {
-  // Outlook uses different selectors - try multiple
-  const emailContainer = document.querySelector('.ReadingPaneContent, [role="main"] .customScrollBar, #ReadingPaneContainerId, [data-testid="reading-pane"]');
-  
-  if (!emailContainer) {
+  if (isAnalyzing) {
+    log('⏳ Already analyzing, skipping...');
     return;
   }
   
-  // Get email content to generate ID
-  const emailText = emailContainer.innerText || '';
-  if (emailText.length < 50) return; // Too short, probably not an email
+  // Get email content from various possible containers
+  const emailData = extractEmailData();
   
-  // Generate ID from sender + subject
-  const sender = extractSender();
-  const subject = extractSubject();
-  const emailId = btoa(sender + subject).substring(0, 20);
-  
-  if (emailId !== currentEmailId && !isAnalyzing && emailId !== 'AAAAAAAAAAAAAAAAAAAA') {
-    currentEmailId = emailId;
-    log('📧 New email detected:', subject.substring(0, 40));
-    setTimeout(() => analyzeCurrentEmail(sender, subject, emailText), 800);
+  if (!emailData) {
+    log('❌ Could not extract email data');
+    return;
   }
+  
+  // Generate ID from content
+  const contentHash = btoa(emailData.sender + emailData.subject).substring(0, 20);
+  
+  if (contentHash === currentEmailId) {
+    log('📧 Same email, skipping');
+    return;
+  }
+  
+  if (contentHash === 'AAAAAAAAAAAAAAAAAAAA' || contentHash.includes('undefined')) {
+    log('❌ Invalid email ID generated');
+    return;
+  }
+  
+  currentEmailId = contentHash;
+  
+  log('✅ Email detected!');
+  log('   From:', emailData.sender);
+  log('   Subject:', emailData.subject.substring(0, 50));
+  log('   Body length:', emailData.body.length);
+  
+  isAnalyzing = true;
+  
+  setTimeout(() => {
+    analyzeEmail(emailData);
+  }, 500);
 }
 
-function extractSender() {
-  // Try multiple selectors for Outlook sender
-  const selectors = [
-    '.o365cs-span[title]',
+function extractEmailData() {
+  let sender = null;
+  let subject = null;
+  let body = '';
+  const links = [];
+  
+  // === TRY TO FIND SENDER ===
+  // Method 1: Look for email addresses in the page
+  const allText = document.body.innerText;
+  const emailMatches = allText.match(/[\w.-]+@[\w.-]+\.\w+/g);
+  
+  // Try to find sender in various elements
+  const senderSelectors = [
+    // New Outlook (React-based)
+    '[data-testid="message-header-from"]',
     '[data-testid="sender-email"]',
+    '[aria-label*="From"] [title]',
+    '[aria-label*="From"]',
+    
+    // Classic Outlook
     '.bidi[title]',
-    '[role="heading"] span[title]',
-    '.o365cs-fm bt b tc',
-    '[aria-label*="From"]'
+    '.o365cs-span[title]',
+    '.sender-email',
+    
+    // Generic
+    '[role="main"] span[email]',
+    '[role="article"] [title*="@"]',
+    
+    // Reading pane specific
+    '.ReadingPaneContent [title*="@"]',
+    '#ReadingPaneContainerId [title*="@"]'
   ];
   
-  for (const selector of selectors) {
+  for (const selector of senderSelectors) {
     const el = document.querySelector(selector);
     if (el) {
-      const email = el.getAttribute('title') || el.textContent;
-      if (email && email.includes('@')) {
-        return email.trim();
+      const text = el.getAttribute('title') || el.textContent || '';
+      if (text.includes('@')) {
+        sender = text.trim();
+        log('🔍 Found sender via selector:', selector);
+        break;
       }
     }
   }
   
-  // Try to find any email pattern in the header
-  const header = document.querySelector('.ReadingPaneContent, [role="main"]');
-  if (header) {
-    const emailMatch = header.textContent.match(/[\w.-]+@[\w.-]+\.\w+/);
-    if (emailMatch) return emailMatch[0];
+  // Fallback: Use first email found in content
+  if (!sender && emailMatches && emailMatches.length > 0) {
+    // Filter out common false positives
+    const validEmails = emailMatches.filter(e => 
+      !e.includes('example.com') && 
+      !e.includes('test.com') &&
+      e.length > 5
+    );
+    if (validEmails.length > 0) {
+      sender = validEmails[0];
+      log('🔍 Found sender via text search');
+    }
   }
   
-  return 'Unknown';
-}
-
-function extractSubject() {
-  const selectors = [
-    '[role="heading"]',
+  // === TRY TO FIND SUBJECT ===
+  const subjectSelectors = [
+    '[data-testid="message-header-subject"]',
+    '[aria-label="Subject"]',
     'h1',
-    '[data-testid="subject"]',
-    '.bidi'  // Sometimes subject is here
+    '[role="heading"]',
+    '.subject-line',
+    '.bidi' // Sometimes subject is here in classic Outlook
   ];
   
-  for (const selector of selectors) {
+  for (const selector of subjectSelectors) {
     const el = document.querySelector(selector);
     if (el) {
       const text = el.textContent.trim();
-      if (text && text.length > 0 && text.length < 200) {
-        return text;
+      if (text.length > 0 && text.length < 300 && !text.includes('@')) {
+        subject = text;
+        log('🔍 Found subject via selector:', selector);
+        break;
       }
     }
   }
   
-  return 'No Subject';
-}
-
-function analyzeCurrentEmail(sender, subject, bodyText) {
-  if (isAnalyzing) return;
-  isAnalyzing = true;
+  // === TRY TO FIND BODY ===
+  const bodySelectors = [
+    '[data-testid="message-body"]',
+    '.ReadingPaneContent',
+    '#ReadingPaneContainerId',
+    '[role="main"] .customScrollBar',
+    '[role="article"]',
+    '.message-content'
+  ];
   
-  try {
-    log('📧 Analyzing:', sender, '-', subject.substring(0, 50));
+  let bodyEl = null;
+  for (const selector of bodySelectors) {
+    bodyEl = document.querySelector(selector);
+    if (bodyEl) {
+      log('🔍 Found body via selector:', selector);
+      break;
+    }
+  }
+  
+  if (bodyEl) {
+    body = bodyEl.innerText || '';
     
     // Get links
-    const emailContainer = document.querySelector('.ReadingPaneContent, [role="main"] .customScrollBar, #ReadingPaneContainerId');
-    const links = [];
-    if (emailContainer) {
-      emailContainer.querySelectorAll('a').forEach(a => {
-        if (a.href && !a.href.startsWith('javascript:')) {
-          links.push({ text: a.innerText || a.href, href: a.href });
-        }
-      });
-    }
+    bodyEl.querySelectorAll('a').forEach(a => {
+      if (a.href && !a.href.startsWith('javascript:') && !a.href.startsWith('#')) {
+        links.push({
+          text: a.innerText || a.href,
+          href: a.href
+        });
+      }
+    });
+  }
+  
+  // Validate we have enough data
+  if (!sender || !subject || body.length < 20) {
+    log('❌ Incomplete email data:', { 
+      sender: sender || 'MISSING', 
+      subject: subject || 'MISSING', 
+      bodyLength: body.length 
+    });
+    return null;
+  }
+  
+  return { sender, subject, body, links };
+}
+
+function analyzeEmail(emailData) {
+  try {
+    log('🤖 Analyzing email...');
     
-    const emailData = { subject, sender, body: bodyText, links };
-    
-    // Use heuristics
     const result = runHeuristics(emailData);
-    showTrustOverlay(result.score, result.issues, emailData);
+    
+    log('📊 Score:', result.score, '| Issues:', result.issues.length);
+    
+    showOverlay(result.score, result.issues, emailData);
+    updateStats(result.score);
     
   } catch (error) {
-    log('❌ Error:', error);
+    log('❌ Analysis error:', error);
   } finally {
     isAnalyzing = false;
   }
@@ -160,7 +274,8 @@ function runHeuristics(emailData) {
   const sender = emailData.sender.toLowerCase();
   
   // Urgency words
-  const urgencyWords = ['urgent', 'immediately', 'act now', 'verify', 'suspended', 'security alert', 'unusual activity', 'confirm', 'limited time', 'expires', 'deadline', 'asap', 'emergency', 'warning'];
+  const urgencyWords = ['urgent', 'immediately', 'act now', 'verify', 'suspended', 
+    'security alert', 'unusual activity', 'confirm', 'limited time', 'expires'];
   
   urgencyWords.forEach(word => {
     if (body.includes(word) || subject.includes(word)) {
@@ -169,187 +284,144 @@ function runHeuristics(emailData) {
     }
   });
   
-  // Suspicious sender patterns
-  if (sender.includes('no-reply') || sender.includes('noreply')) {
-    score -= 5;
-    issues.push(`📧 No-reply sender`);
-  }
-  
-  if (sender.includes('alert') || sender.includes('security') || sender.includes('verify')) {
+  // Suspicious sender
+  if (sender.includes('no-reply') || sender.includes('alert') || sender.includes('security')) {
     score -= 10;
-    issues.push(`🚨 Suspicious sender name`);
+    issues.push(`🚨 Suspicious sender pattern`);
   }
   
   // Generic greetings
-  const genericGreetings = ['dear customer', 'dear user', 'dear client', 'valued customer'];
-  genericGreetings.forEach(greeting => {
-    if (body.includes(greeting)) {
-      score -= 8;
-      issues.push(`👤 Generic greeting: "${greeting}"`);
-    }
-  });
+  if (body.includes('dear customer') || body.includes('dear user')) {
+    score -= 8;
+    issues.push(`👤 Generic greeting`);
+  }
   
-  // Requests for sensitive info
-  const sensitiveRequests = ['password', 'credit card', 'ssn', 'social security', 'bank account', 'verify your account', 'confirm your identity', 'update your information', 'click here to verify'];
-  
-  sensitiveRequests.forEach(request => {
-    if (body.includes(request)) {
-      score -= 15;
-      issues.push(`🔒 Requests: "${request}"`);
-    }
-  });
+  // Sensitive requests
+  if (body.includes('password') || body.includes('verify your account')) {
+    score -= 15;
+    issues.push(`🔒 Requests sensitive info`);
+  }
   
   // Suspicious links
   emailData.links.forEach(link => {
-    if (link.text && link.href) {
-      const text = link.text.toLowerCase().trim();
-      const href = link.href.toLowerCase();
-      
-      if ((text.includes('click here') || text.includes('verify')) && !href.includes('google.com') && !href.includes('microsoft.com')) {
-        score -= 10;
-        issues.push(`🔗 Suspicious link text`);
-      }
-      
-      if (href.includes('bit.ly') || href.includes('tinyurl') || href.includes('t.co')) {
-        score -= 8;
-        issues.push(`⚡ Shortened URL detected`);
-      }
+    if (link.href && (link.href.includes('bit.ly') || link.href.includes('tinyurl'))) {
+      score -= 8;
+      issues.push(`⚡ Shortened URL`);
     }
   });
   
   return { score: Math.max(0, score), issues };
 }
 
-function showTrustOverlay(score, issues, emailData) {
+function showOverlay(score, issues, emailData) {
   removeExistingOverlay();
   
   let color, title;
   if (score < 30) {
     color = '#f44336';
-    title = 'HIGH RISK - Likely Phishing';
+    title = 'HIGH RISK';
   } else if (score < 70) {
     color = '#ff9800';
-    title = 'MEDIUM RISK - Be Cautious';
+    title = 'MEDIUM RISK';
   } else {
     color = '#4caf50';
-    title = 'LOW RISK - Appears Safe';
+    title = 'LOW RISK';
   }
   
   const overlay = document.createElement('div');
-  overlay.id = 'anti-phish-overlay-outlook';
+  overlay.id = 'anti-phish-outlook-overlay';
   overlay.style.cssText = `
     position: fixed;
     top: 20px;
     right: 20px;
-    width: 360px;
-    background: #ffffff;
-    border-radius: 20px;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.05);
+    width: 350px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden;
-    animation: aph-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   `;
   
-  if (!document.getElementById('aph-styles')) {
-    const style = document.createElement('style');
-    style.id = 'aph-styles';
-    style.textContent = `
-      @keyframes aph-slide-in {
-        from { opacity: 0; transform: translateX(100px) scale(0.95); }
-        to { opacity: 1; transform: translateX(0) scale(1); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-  
   overlay.innerHTML = `
-    <div style="height: 8px; background: ${color};"></div>
-    <div style="padding: 24px;">
-      <div style="display: flex; align-items: center; margin-bottom: 20px;">
-        <div style="
-          width: 70px; height: 70px; border-radius: 50%; 
-          background: conic-gradient(${color} ${score}%, #e8e8e8 ${score}%);
-          display: flex; align-items: center; justify-content: center;
-          margin-right: 16px; flex-shrink: 0;
-        ">
-          <div style="
-            width: 56px; height: 56px; border-radius: 50%; background: white;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; font-weight: 700; color: ${color};">${score}</div>
+    <div style="height: 6px; background: ${color};"></div>
+    <div style="padding: 20px;">
+      <div style="display: flex; align-items: center; margin-bottom: 15px;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; 
+                    background: conic-gradient(${color} ${score}%, #e0e0e0 ${score}%);
+                    display: flex; align-items: center; justify-content: center;
+                    margin-right: 15px;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: white;
+                      display: flex; align-items: center; justify-content: center;
+                      font-size: 16px; font-weight: bold; color: ${color};">
+            ${score}
+          </div>
         </div>
         <div>
-          <div style="font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Trust Score</div>
-          <div style="font-size: 18px; font-weight: 700; color: ${color};">${title}</div>
+          <div style="font-size: 12px; color: #666;">Trust Score</div>
+          <div style="font-size: 18px; font-weight: bold; color: ${color};">${title}</div>
         </div>
       </div>
       
-      <div style="background: #f7f7f7; border-radius: 12px; padding: 12px 16px; margin-bottom: ${issues.length > 0 ? '16px' : '20px'};">
-        <span style="font-size: 18px; margin-right: 10px;">📧</span>
-        <div style="display: inline-block;">
-          <div style="font-size: 11px; color: #888; text-transform: uppercase;">Sender</div>
-          <div style="font-size: 14px; color: #333; font-weight: 500;">${emailData.sender}</div>
-        </div>
+      <div style="background: #f5f5f5; border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+        <div style="font-size: 11px; color: #888;">From</div>
+        <div style="font-size: 13px; color: #333; font-weight: 500;">${emailData.sender}</div>
       </div>
       
       ${issues.length > 0 ? `
-        <div style="background: #fafafa; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-          <div style="font-size: 12px; color: ${color}; font-weight: 700; text-transform: uppercase; margin-bottom: 12px;">
-            ⚠️ ${issues.length} Issue${issues.length > 1 ? 's' : ''} Detected
+        <div style="background: #fafafa; border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+          <div style="font-size: 11px; color: ${color}; font-weight: bold; margin-bottom: 8px;">
+            ⚠️ ${issues.length} Issue(s) Found
           </div>
           ${issues.map(i => `
-            <div style="display: flex; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #eee;">
-              <span style="margin-right: 10px; flex-shrink: 0;">${i.split(' ')[0]}</span>
-              <span style="font-size: 13px; color: #444; line-height: 1.4;">${i.substring(i.indexOf(' ') + 1)}</span>
+            <div style="font-size: 12px; color: #555; padding: 4px 0; border-bottom: 1px solid #eee;">
+              ${i}
             </div>
           `).join('')}
         </div>
       ` : ''}
       
-      <div style="display: flex; gap: 12px;">
-        <button id="aph-dismiss-outlook" style="flex: 1; padding: 14px; border: 1.5px solid #ddd; border-radius: 12px; background: #fff; color: #555; cursor: pointer; font-weight: 600; font-size: 14px;">Dismiss</button>
-        <button id="aph-report-outlook" style="flex: 1; padding: 14px; border: none; border-radius: 12px; background: ${color}; color: white; cursor: pointer; font-weight: 600; font-size: 14px;">Report</button>
-      </div>
+      <button id="aph-outlook-dismiss" style="
+        width: 100%; padding: 12px; border: none; border-radius: 8px;
+        background: ${color}; color: white; font-weight: 600; cursor: pointer;
+      ">Dismiss</button>
     </div>
   `;
   
   document.body.appendChild(overlay);
   
-  document.getElementById('aph-dismiss-outlook').onclick = () => overlay.remove();
-  document.getElementById('aph-report-outlook').onclick = () => {
-    alert('📧 Reported! Thanks for helping.');
+  document.getElementById('aph-outlook-dismiss').addEventListener('click', () => {
     overlay.remove();
-  };
+  });
   
-  updateStats(score);
-  
-  log('✅ Outlook overlay displayed');
+  log('✅ Overlay displayed');
 }
 
 function removeExistingOverlay() {
-  const existing = document.getElementById('anti-phish-overlay-outlook');
+  const existing = document.getElementById('anti-phish-outlook-overlay');
   if (existing) existing.remove();
 }
 
 function updateStats(score) {
   try {
-    if (!chrome.runtime || !chrome.runtime.id) return;
+    if (!chrome.storage || !chrome.storage.local) return;
     
-    if (chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['scanned', 'blocked'], function(result) {
-        if (chrome.runtime.lastError) return;
-        
-        let scanned = (result.scanned || 0) + 1;
-        let blocked = (result.blocked || 0) + (score < 30 ? 1 : 0);
-        
-        chrome.storage.local.set({ scanned, blocked });
-      });
-    }
+    chrome.storage.local.get(['scanned', 'blocked'], function(result) {
+      if (chrome.runtime.lastError) return;
+      
+      const scanned = (result.scanned || 0) + 1;
+      const blocked = (result.blocked || 0) + (score < 30 ? 1 : 0);
+      
+      chrome.storage.local.set({ scanned, blocked });
+      log('📊 Stats updated:', scanned, 'scanned,', blocked, 'blocked');
+    });
   } catch (e) {}
 }
 
-// Run on Outlook
+// Initialize
 if (window.location.hostname.includes('outlook')) {
+  log('🚀 Outlook detected, initializing...');
+  
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
