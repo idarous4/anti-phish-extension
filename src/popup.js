@@ -14,18 +14,32 @@ document.addEventListener('DOMContentLoaded', function() {
   // Learning Mode Toggle
   const learningToggle = document.getElementById('learning-mode-toggle');
   if (learningToggle) {
-    // Load saved state
-    const savedMode = localStorage.getItem('antiPhish_learningMode') === 'true';
-    learningToggle.checked = savedMode;
+    // Load saved state from chrome.storage (source of truth)
+    if (chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['learningMode'], function(result) {
+        const savedMode = result.learningMode === true;
+        learningToggle.checked = savedMode;
+        // Sync to localStorage for backup
+        localStorage.setItem('antiPhish_learningMode', savedMode.toString());
+      });
+    } else {
+      // Fallback to localStorage
+      const savedMode = localStorage.getItem('antiPhish_learningMode') === 'true';
+      learningToggle.checked = savedMode;
+    }
     
     learningToggle.addEventListener('change', function() {
       const isEnabled = this.checked;
-      localStorage.setItem('antiPhish_learningMode', isEnabled.toString());
       
-      // Also save to chrome.storage if available
+      // Save to chrome.storage as primary (content scripts read from here)
       if (chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ learningMode: isEnabled });
+        chrome.storage.local.set({ learningMode: isEnabled }, function() {
+          console.log('[Anti-Phish] Learning Mode saved:', isEnabled);
+        });
       }
+      
+      // Backup to localStorage
+      localStorage.setItem('antiPhish_learningMode', isEnabled.toString());
     });
   }
   
